@@ -15,76 +15,42 @@ class LocalHost(object):
         self.hostname = socket.gethostname()
 
 
-    def execute(self, command, piped_command=''):
-        """Execute a command (and eventually a piped command) on the local host.
+    def execute(self, *commands):
+        """Execute commands. The commands are piped.
+        Only the stderr of the last command is return so if there
+        is command in error before stderr is empty!
 
-        TODO: given list of commands in parameters and piped then recursively.
-
-        @type command: list
-        @param command: List of parameters of the main command.
-        @type piped_command: list
-        @param piped_command: List of parameters of the piped command.
+        @type *command: list
+        @param command: Commands to execute.
 
         @rtype: list
         @return: status, stdout, stderr
         """
-        try:
-            obj = subprocess.Popen(
-                command,
-                stdout = subprocess.PIPE,
-                stderr = subprocess.PIPE
-            )
-            if piped_command:
-                obj2 = subprocess.Popen(
-                    piped_command,
-                    stdin = obj.stdout,
+        previous = None
+        for command in commands:
+            if previous:
+                obj = subprocess.Popen(
+                    command,
+                    stdin = previous.stdout,
+                    stdout = subprocess.PIPE,
+                    stderr = subprocess.PIPE,
+                )
+                previous.stdout.close()
+            else:
+                obj = subprocess.Popen(
+                    command,
                     stdout = subprocess.PIPE,
                     stderr = subprocess.PIPE
                 )
-                obj.stdout.close()
-                stdout, stderr = obj2.communicate()
-                return_code = obj2.returncode
-            else:
-                stdout, stderr = obj.communicate()
-                return_code = obj.returncode
-#            stderr = ''
-            if return_code != 0:
+            previous = obj
+
+        try:
+            stdout, stderr = obj.communicate()
+            if obj.returncode != 0:
                 return (False, stdout, stderr)
             return (True, stdout, stderr)
-        except OSError as oserr:
-            return (False, '', oserr)
-
-
-    def _execute(self, command, previous=None):
-        if previous:
-            obj = subprocess.Popen(
-                command,
-                stdin = previous.stdout,
-                stdout = subprocess.PIPE,
-                stderr = subprocess.PIPE
-            )
-            previous.stdout.close()
-        else:
-            obj = subprocess.Popen(
-                command,
-                stdout = subprocess.PIPE,
-                stderr = subprocess.PIPE
-            )
-        return obj
-
-
-    def execute(self, *commands):
-        obj = None
-        for command in commands:
-            obj = self._execute(command, obj)
-
-#        try:
-        stdout, stderr = obj.communicate()
-        if obj.returncode != 0:
-            return (False, stdout, stderr)
-        return (True, stdout, stderr)
-#        except OSError as os_err:
-#            return (False, '', os_err)
+        except OSError as os_err:
+            return (False, '', os_err)
 
 
     def expect(self, command, pattern, value, repeat=1):
