@@ -18,9 +18,6 @@ IPV6_REGEXP = re.compile(
 IPV4_REGEXP = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
 """Regular expression for checking format of an IPv4 address."""
 
-NO_DEBCONF = "DEBIAN_FRONTEND='noninteractive'"
-"""Disable ncurse configuration interface for APT packages."""
-
 
 class ConnectError(Exception):
     """Exception raised when there is an error when connecting to a

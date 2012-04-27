@@ -1,5 +1,8 @@
 from unix.remote import RemoteHost
 
+NO_DEBCONF = "DEBIAN_FRONTEND='noninteractive'"
+"""Disable ncurse configuration interface for APT packages."""
+
 class DebHost(RemoteHost):
     """Class for managing host based on Deb packages and APT package manager
     like Debian, Ubuntu, ...
