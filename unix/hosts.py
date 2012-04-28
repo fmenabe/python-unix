@@ -6,18 +6,20 @@ import paramiko
 import crypt
 import random
 import string
-from datetime import datetime
-import time
 import re
-from unix.local import LocalHost
+import time
+from datetime import datetime
+
+
+IPV4_REGEXP = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
+"""Regular expression for checking format of an IPv4 address."""
 
 IPV6_REGEXP = re.compile(
     '^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
     '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}$'
 )
 """Regular expression for checking format of an IPv6 address."""
-IPV4_REGEXP = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
-"""Regular expression for checking format of an IPv4 address."""
+
 
 
 class ConnectError(Exception):
@@ -26,33 +28,31 @@ class ConnectError(Exception):
     pass
 
 
-class InvalidOS(Exception):
-    """Exception raised when an invalid class for an operating system (ie: using
-    Ubuntu object for a Red Hat operating system for exemple).
-    """
+class UnknownMethod(Exception):
+    """Exception raised when there is an attempt to execute a function
+    that the object not have."""
     pass
 
 
 class LocalHost(object):
-    """Class that execute command and actions on localhost.
+    """Class that execute commands on localhost.
 
     @sort: __init__, execute, expect, copy, scp_copy, tar_copy
     """
     def __init__(self):
-        """Initialize object.
-
-        This method only get hostname of the localhost.
+        """Initialize the object. This method only get hostname of the
+        localhost.
         """
         self.hostname = socket.gethostname()
 
 
     def execute(self, *commands):
-        """Execute commands. The commands are piped.
-        Only the stderr of the last command is return so if there
-        is command in error before stderr is empty!
+        """Execute commands. If there are many commands, command are piped. Only
+        the stderr of the last command is returned so, if there are errors
+        before the last command, status is set to False but stderr is empty!
 
         @type *command: list
-        @param command: Commands to execute.
+        @param *command: Commands to execute.
 
         @rtype: list
         @return: status, stdout, stderr
@@ -84,36 +84,31 @@ class LocalHost(object):
             return (False, '', os_err)
 
 
-    def expect(self, command, pattern, value, repeat=1):
+    def expect(self, command, *patterns):
         """Execute command on the local host that need inputs.
 
-        It is possible to repeat the couple pattern/value for the command but
-        if pattern/value are different it don't work. For example, when changing
-        a non root user password, the previous password is ask, so the first
-        input is different of the two others!
+        Exemple:
+        >>> # Executing as not root user
+        >>> localhost.expect(
+        >>>     'passwd',
+        >>>     ('pass', 'old_password'),   # Ask of the old password
+        >>>     ('pass', 'new_password'),   # First ask of the new password
+        >>>     ('pass', 'new_password')    # Second ask of the new password
+        >>> )
 
         @type command: str
-        @param command: Command(s) to execute.
-        @type pattern: str
-        @param pattern: Expected input of the command.
-        @type value: str
-        @param value: Value of the input.
-        @type repeat: int
-        @param repeat: Number of time the input is asked (two for password for
-                       example).
+        @param command: Command with parameters to execute.
+        @type *pattern: list
+        @param *pattern: List of couple pattern/value to send
 
         @rtype: list
         @return: status, stdout, stderr
-
-        Exemple:
-
-        >>> localhost.expect('passwd', 'assword', 'toto', 2)
         """
-        child = pexpect.spawn(" ".join(command))
-        for i in xrange(0, repeat):
+        child = pexpect.spawn(command)
+        for (pattern, value) in patterns:
             child.expect(pattern)
             child.sendline(value)
-            time.sleep(0.1)
+            time.sleep(.1)
         output = "\n".join(
             [line.replace('\r\n', '') for line in child.readlines()[1:]]
         )
@@ -125,47 +120,51 @@ class LocalHost(object):
         return (True, '', '')
 
 
-    def rmt_copy(self, path, rmt_path, rmt_hostname, rmt_user='root', rmt_pwd='',
-    method='scp'):
+    def rmt_copy(self, path, hostname, rmt_path, method='scp', **ids):
         """Wrapper for copy methods.
 
         @type path: str
         @param path: Path of the file/directory on localhost.
+        @type hostname: str
+        @param hostname: Hostname/IP of the remote host.
         @type rmt_path: str
         @param rmt_path: Remote path.
-        @type rmt_hostname: str
-        @param rmt_hostname: Hostname of the remote host.
-        @type rmt_user: str
-        @param rmt_user: User for copy.
-        @type rmt_pwd: str
-        @param rmt_pwd: Password.
         @type method: str
         @param method: Method ('scp', 'tar', ...) for copyign files.
+        @type ids: dict
+        @param rmt_user: ids (username and password) for the connexion.
 
         @rtype: list
         @return: status, stdout, stderr
         """
-        function = getattr(self, '%s_copy' % method)
-        return function(path, rmt_path, rmt_hostname, rmt_user, rmt_pwd)
+        username = 'root' \
+            if not 'username' in ids or ids['username'] == '' \
+            else ids['username']
+        pwd = '' \
+            if not 'password' in ids or ids['password'] == '' \
+            else ids['password']
+
+        try:
+            function = getattr(self, '%s_copy' % method)
+        except AttributeError:
+            raise UnknownMethod("Invalid copy method '%s'" % method)
+        return function(path, hostname, rmt_path, username, pwd)
 
 
-    def scp_copy(self, path, rmt_path, rmt_hostname, rmt_user, rmt_pwd=''):
+    def scp_copy(self, path, hostname, rmt_path, username, password):
         """Copy a file or a directory from the local host to a remote host with
         SCP command.
 
-        If no password is given it use I{execute} method otherwise I{expect}
-        method.
-
         @type path: str
         @param path: Path of the file/directory on the local host.
+        @type hostname: str
+        @param hostname: Hosrname of the remote host.
         @type rmt_path: str
         @param rmt_path: Path of the file/directory on the remote host.
-        @type rmt_hostname: str
-        @param rmt_hostname: Hosrname of the remote host.
-        @type rmt_user: str
-        @param rmt_user: Username of the remote host.
-        @type rmt_pwd: str
-        @param rmt_pwd: Remote password (optionaly).
+        @type username: str
+        @param username: Username of the remote host.
+        @type password: str
+        @param password: Remote password (optionaly).
 
         @rtype: list
         @return: status, stdout, stderr
@@ -174,68 +173,60 @@ class LocalHost(object):
             'scp', '-rp',
             '-o', 'StrictHostKeyChecking=no',
             path,
-            '%s@%s:%s' % (rmt_user, rmt_hostname, rmt_path)
+            '%s@%s:%s' % (username, hostname, rmt_path)
         ]
-        if rmt_pwd:
+        if password:
             command.insert(2, '-o PubkeyAuthentication=no')
 
-        return self.execute(command) if not rmt_pwd else self.expect(
-            command,
-            "assword",
-            rmt_pwd
-        )
+        return \
+            self.execute(command) if not password \
+            else self.expect(' '.join(command), ("assword", password))
 
 
-    def tar_copy(self, path, rmt_path, rmt_hostname, rmt_user, rmt_pwd='',
-    transform=''):
+    def tar_copy(self, path, hostname, rmt_path, username, password, transform=''):
         """Copy a file or a directory from the local host to a remote host with
         SCP command.
 
-        If no password is given it use I{execute} method othewise I{expect}
-        method.
-
         @type path: str
         @param path: Path of the file/directory on the local host.
+        @type hostname: str
+        @param hostname: Hosrname of the remote host.
         @type rmt_path: str
         @param rmt_path: Path of the file/directory on the remote host.
-        @type rmt_hostname: str
-        @param rmt_hostname: Hosrname of the remote host.
-        @type rmt_user: str
-        @param rmt_user: Username of the remote host.
-        @type rmt_pwd: str
-        @param rmt_pwd: Remote password (optionaly).
+        @type username: str
+        @param username: Username of the remote host.
+        @type password: str
+        @param password: Remote password (optionaly).
         @type transform: str
         @param transform: pattern for transforming file names.
 
         @rtype: list
         @return: status, stdout, stderr
         """
-        src_dirname = os.path.abspath(os.path.dirname(path))
-        src_filename = os.path.basename(path)
-        command = ('tar', 'czf', '-', '-C', src_dirname, src_filename)
-        pipe_command = [
+        compress_cmd = (
+            'tar', 'czf', '-', '-C',
+            os.path.abspath(os.path.dirname(path)),
+            os.path.basename(path)
+        )
+        uncompress_cmd = [
             'ssh', '-o StrictHostKeyChecking=no',
-            '%s@%s' % (rmt_user, rmt_hostname),
+            '%s@%s' % (username, hostname),
             'tar', 'xzf', '-', '-C', rmt_path
         ]
-        if rmt_pwd:
-            pipe_command.insert(2, '-o PubkeyAuthentication=no')
+        if password:
+            uncompress_cmd.insert(2, '-o PubkeyAuthentication=no')
         if transform:
-            pipe_command.append('--transform %s' % transform)
+            uncompress_cmd.append('--transform %s' % transform)
 
-        return self.execute(
-            command,
-            pipe_command
-        ) if not rmt_pwd else self.expect(
-            (
+        return \
+            self.execute(compress_cmd, uncompress_cmd) if not password \
+            else self.expect(
                 '/bin/sh -c "%s | %s"' % (
-                ' '.join(command),
-                ' '.join(pipe_command)
+                    ' '.join(compress_cmd),
+                    ' '.join(uncompress_cmd)
                 ),
-            ),
-            'assword',
-            rmt_pwd
-        )
+                ('assword', password)
+            )
 
 
 class RemoteHost(object):
@@ -247,7 +238,6 @@ class RemoteHost(object):
     load, loaded, unload, manage_service, start, stop, restart, reload,
     set_password
     """
-
     def __init__(self, host=None):
         """Initialize host.
 
@@ -788,8 +778,10 @@ class RemoteHost(object):
     def get(self, local_path, rmt_path, method='sftp'):
         """Copy a file or a directory from the local host to the remote host.
 
-        If method is 'scp', the paramiko SFTP object is used otherwire it is
-        one of the LocalHost copy function that is used.
+        If method is 'sftp', the paramiko SFTP object is used otherwise it is
+        one of the LocalHost copy function that is used. SFTP client implemented
+        by paramiko is slow with big file and it is better to use scp command
+        for example.
 
         @type local_path: str
         @param local_path: Path of the file on the local host.
@@ -803,21 +795,21 @@ class RemoteHost(object):
         @rtype: list
         @return: status, stdout, stderr
         """
+        self._connected()
         if method == 'sftp':
             return self.sftp_get(local_path, rmt_path)
         else:
-            localhost = LocalHost()
-            function = getattr(localhost, '%s_copy' % method)
-            return function(
+            return LocalHost().rmt_copy(
                 local_path,
-                rmt_path,
                 self.ip,
-                self.username,
-                self.password
+                rmt_path,
+                method,
+                username=self.username,
+                password=self.password
             )
 
 
-    def copy(self, src, rmt_path, rmt_host, rmt_user='root', method='scp'):
+    def rmt_copy(self, path, hostname, rmt_path, username='root', method='scp'):
         """Copy a file from remote host to another host.
 
         It is a wrapper that execute a function of the current object according
@@ -825,45 +817,44 @@ class RemoteHost(object):
         I{method}_copy. For example if method I{scp} is passed, it return the
         result of the object function I{scp_copy}.
 
-        @type src: str
-        @param src: Path of the file/directory to copy.
+        @type path: str
+        @param path: Path of the file/directory to copy.
+        @type hostname: str
+        @param hostname: Hostname of the host on which copying file.
         @type rmt_path: str
         @param rmt_path: Where to copy file/directory on remote host.
-        @type rmt_host: str
-        @param rmt_host: Hostname of the host on which copying file.
-        @type rmt_user: str
-        @param rmt_user: User for copying file (keys must be on the host).
+        @type username: str
+        @param username: User for copying file (keys must be on the host).
         @type method: str
         @param method: Method for copying file.
 
         @rtype: list
         @return: status, stdout, stderr
         """
-        f_name = '%s_copy' % method
-        function = getattr(self, f_name)
-        return function(
-            src,
-            rmt_path,
-            rmt_host,
-            rmt_user
-        )
+        self._connected()
+        try:
+            function = getattr(self, '%s_copy' % method)
+        except AttributeError:
+            raise UnknownMethod("Invalid copy method '%s'" % method)
+        return function(path, hostname, rmt_path, username)
 
 
-    def scp_copy(self, src, rmt_path, rmt_host, rmt_user='root'):
+    def scp_copy(self, path, hostname, rmt_path, username='root'):
         """Copy a file/directory from the remote host to another host using
         I{scp} command.
 
         The remote host must have SSH keys of the host on which the copy is done
         because it is not possible to use expect on the remote host.
 
-        @type src: str
-        @param src: Path of a file/directory on the remote host.
-        @type dest: str
-        @param dest: Path of the destination in the other host.
-        @type remote_host: str
-        @param remote_host: Host on which copy the file/directory.
-        @type remote_user: str
-        @param remote_user
+        @type path: str
+        @param path: Path of a file/directory on the remote host.
+        @type hostname: str
+        @param hostname: Host on which copy the file/directory.
+        @type rmt_path: str
+        @param rmt_path: Path of the destination in the other host.
+        @type username: str
+        @param username: User for the remote connection (remote host must have
+                         SSH keys for this user).
 
         @rtype: list
         @return: status, stdout, stderr
@@ -872,40 +863,43 @@ class RemoteHost(object):
         return self.execute(' '.join((
             'scp -rp',
             '-o StrictHostKeyChecking=no',
-            src,
-            '%s@%s:%s' % (rmt_user, rmt_host, rmt_path)
+            path,
+            '%s@%s:%s' % (username, hostname, rmt_path)
         )))
 
 
-    def tar_copy(self, src, rmt_path, rmt_host, rmt_user='root'):
+    def tar_copy(self, path, hostname, rmt_path, username='root'):
         """Copy a file/directory from the remote host to another host using
         I{tar} command.
 
         The command used is:
-          tar czf - -C I{src} | ssh -o StrictHostKeyChecking I{rmt_user}@I{rmt_host}
+          tar czf - -C I{path} | ssh -o StrictHostKeyChecking I{rmt_user}@I{rmt_host}
           tar xzf - -C I{rmt_path}
 
         The remote host must have SSH keys of the host on which the copy is done
         because it is not possible to use expect on the remote host.
 
-        @type src: str
-        @param src: Path of a file/directory on the remote host.
-        @type dest: str
-        @param dest: Path of the destination in the other host.
-        @type remote_host: str
-        @param remote_host: Host on which copy the file/directory.
-        @type remote_user: str
-        @param remote_user
+        @type path: str
+        @param path: Path of a file/directory on the remote host.
+        @type hostname: str
+        @param hostname: Host on which copy the file/directory.
+        @type rmt_path: str
+        @param rmt_path: Path of the destination in the other host.
+        @type username: str
+        @param username: User for the remote connection (remote host must have
+                         SSH keys for this user).
 
         @rtype: list
         @return: status, stdout, stderr
         """
         self._connected()
         return self.execute(' '.join((
-            'tar czf - -C', src_dirname, src_filename,
+            'tar czf - -C',
+            os.path.abspath(os.path.dirname(path)),
+            os.path.basename(path),
             '|',
             'ssh', '-o StrictHostKeyChecking=no',
-            '%s@%s' % (rmt_user, rmt_host),
+            '%s@%s' % (username, hostname),
             'tar xzf - -C', rmt_path
         )))
 
