@@ -367,9 +367,13 @@ class RemoteHost(object):
                     username=username,
                     timeout=timeout
                 )
-            self.hostname = self.execute('hostname')[1].strip()
         except Exception as exc:
             raise ConnectError(exc)
+
+
+    @property
+    def hostname(self):
+        return self.execute('hostname')[1].strip()
 
 
     def _connected(self):
