@@ -64,19 +64,23 @@ def fail(msg, range=76):
     return "\033[%sG\033[31mFAIL\n%s\033[00m" % (range, msg)
 
 
-def print_status(cmd_output, range=76):
+def status(cmd_output, exit=False, range=76):
     """In function of output of a command (status, stdout, stderr), print the
     good output.
 
     @type cmd_output: list
     @param cmd_output: List with the three parameters of an output (ie: status,
                        stdout and stderr.)
+    @type exit: bool
+    @param exit: Quit program if the status of the command is False.
     @type range: int
     @param range: Column number.
     """
     status, stdout, stderr = cmd_output
     if not status:
         print(fail(stderr, range))
+        if exit:
+            sys.exit(1)
     elif stderr:
         print(warn(stderr, range))
     else:
