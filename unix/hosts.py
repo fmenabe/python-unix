@@ -534,9 +534,7 @@ class RemoteHost(object):
         command = ['mkdir', dirpath]
         if parents:
             command.insert(1, '-p')
-        output = self.execute(" ".join(command))
-        if not output[0]:
-            raise OSError(output[2])
+        return self.execute(" ".join(command))
 
 
     def cp(self, src, dest, recursive=False):
@@ -552,16 +550,14 @@ class RemoteHost(object):
         """
         self._connected()
         if not recursive and self.isdir(src):
-            raise OSError("%s is a directory" % src)
+            return (False, '', "%s is a directory" % src)
 
         command = ['cp',]
         if recursive:
             command.append('-R')
         command.append(src)
         command.append(dest)
-        output = self.execute(' '.join(command))
-        if not output[0]:
-            raise OSError(output[2])
+        return self.execute(' '.join(command))
 
 
     def mv(self, old_path, new_path):
@@ -576,9 +572,7 @@ class RemoteHost(object):
         @return: status, stdout, stderr
         """
         self._connected()
-        output = self.execute('mv %s %s' % (old_path, new_path))
-        if not output[0]:
-            raise OSError(output[2])
+        return self.execute('mv %s %s' % (old_path, new_path))
 
 
     def rm(self, filepath):
@@ -591,9 +585,7 @@ class RemoteHost(object):
         @return: status, stdout, stderr
         """
         self._connected()
-        output = self.execute('rm %s' % filepath)
-        if not output[0]:
-            raise OSError(output[2])
+        return self.execute('rm %s' % filepath)
 
 
     def rmdir(self, dirpath, safe=False):
@@ -613,9 +605,7 @@ class RemoteHost(object):
         """
         self._connected()
         command = 'rmdir %s' % dirpath if safe else 'rm -r %s' % dirpath
-        output = self.execute(command)
-        if not output[0]:
-            raise OSError(output[2])
+        return self.execute(command)
 
 
     def chown(self, path, user, recursive=False):
@@ -674,9 +664,7 @@ class RemoteHost(object):
         command = ['chmod', rights, path]
         if recursive:
             command.insert(1, '-R')
-        output = self.execute(" ".join(command))
-        if not output[0]:
-            raise OSError(output[2])
+        return self.execute(" ".join(command))
 
 
     def read(self, filepath):
@@ -908,6 +896,7 @@ class RemoteHost(object):
         )))
 
 
+    # TODO: Make a property
     def get_os(self):
         """Get operating system.
 
