@@ -896,8 +896,8 @@ class RemoteHost(object):
         )))
 
 
-    # TODO: Make a property
-    def get_os(self):
+    @property
+    def os(self):
         """Get operating system.
 
         It parse the file I{/etc/issue} which is use by Linux like systems. If
@@ -920,7 +920,8 @@ class RemoteHost(object):
         return os_desc
 
 
-    def get_arch(self):
+    @property
+    def arch(self):
         """Get architecture of the operating system.
 
         The command I{uname -m} is used.
