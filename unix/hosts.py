@@ -78,10 +78,10 @@ class LocalHost(object):
         try:
             stdout, stderr = obj.communicate()
             if obj.returncode != 0:
-                return (False, stdout, stderr)
-            return (True, stdout, stderr)
+                return [False, stdout, stderr]
+            return [True, stdout, stderr]
         except OSError as os_err:
-            return (False, '', os_err)
+            return [False, '', os_err]
 
 
     def expect(self, command, *patterns):
@@ -116,8 +116,8 @@ class LocalHost(object):
         child.close()
         return_code = child.exitstatus
         if return_code != 0:
-            return (False, '', output)
-        return (True, '', '')
+            return [False, '', output]
+        return [True, '', '']
 
 
     def rmt_copy(self, path, hostname, rmt_path, method='scp', **ids):
@@ -412,8 +412,8 @@ class RemoteHost(object):
         )
 
         if return_code != 0:
-            return (False, stdout, stderr)
-        return (True, stdout, stderr)
+            return [False, stdout, stderr]
+        return [True, stdout, stderr]
 
 
     def exists(self, path):
@@ -724,9 +724,9 @@ class RemoteHost(object):
             sftp_file = sftp.file(filepath, 'w')
             sftp_file.write(content)
             sftp_file.close()
-            return (True, '', '')
+            return [True, '', '']
         except IOError as ioerr:
-            return (False, '', ioerr)
+            return [False, '', ioerr]
         finally:
             sftp.close()
 
@@ -762,9 +762,9 @@ class RemoteHost(object):
             sftp = self.ssh.open_sftp()
             sftp.put(local_src, rmt_dest)
             sftp.close()
-            return (True, '', '')
+            return [True, '', '']
         except IOError as ioerr:
-            return (False, '', ioerr)
+            return [False, '', ioerr]
 
 
     def get(self, local_path, rmt_path, method='sftp'):
