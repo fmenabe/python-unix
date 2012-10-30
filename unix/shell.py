@@ -7,6 +7,9 @@ import sys
 import time
 import threading
 
+class QuitOnError(Exception):
+    pass
+
 
 ################################################################################
 ########                       Messages functions                       ########
@@ -38,7 +41,7 @@ def ok(range=76):
     @type range: int
     @param range: Column to start printing (default: 76).
     """
-    return "\033[%sG\033[32mOK\033[00m" % range
+    print "\033[%sG\033[32mOK\033[00m" % range
 
 
 def warn(msg, range=76):
@@ -50,10 +53,10 @@ def warn(msg, range=76):
     @type msg: str
     @param msg: Warning message.
     """
-    return "\033[%sG\033[33mWARN\n%s\033[00m" % (range, msg)
+    print "\033[%sG\033[33mWARN\n%s\033[00m" % (range, msg)
 
 
-def fail(msg, range=76):
+def fail(msg, quit=False, range=76):
     """Return 'FAIL' string in green at given column and a message next line.
 
     @type range: int
@@ -61,10 +64,12 @@ def fail(msg, range=76):
     @type msg: str
     @param msg: Fail message.
     """
-    return "\033[%sG\033[31mFAIL\n%s\033[00m" % (range, msg)
+    print "\033[%sG\033[31mFAIL\n%s\033[00m" % (range, msg)
+    if quit:
+        raise QuitOnError(msg)
 
 
-def status(cmd_output, exit=False, range=76):
+def status(cmd_output, quit=False, range=76):
     """In function of output of a command (status, stdout, stderr), print the
     good output.
 
@@ -78,13 +83,11 @@ def status(cmd_output, exit=False, range=76):
     """
     status, stdout, stderr = cmd_output
     if not status:
-        print(fail(stderr, range))
-        if exit:
-            sys.exit(1)
+        fail(stderr, quit, range)
     elif stderr:
-        print(warn(stderr, range))
+        warn(stderr, range)
     else:
-        print(ok())
+        ok()
 
 
 def fstr(float_number):
