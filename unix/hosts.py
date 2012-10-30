@@ -498,7 +498,7 @@ class RemoteHost(object):
         @return: I{True} if it is a directory, I{False} otherwise.
         """
         self._connected()
-        return True if self.filetype(path) == 'directory' else False
+        return True if self.filetype(path).find('directory') != -1 else False
 
 
     def listdir(self, dirpath):
@@ -679,7 +679,7 @@ class RemoteHost(object):
         self._connected()
 
         if not self.isfile(filepath):
-            raise IOError("%s is not a file" % filepath)
+            raise OSError("%s is not a file" % filepath)
 
         sftp = self.ssh.open_sftp()
         sftp_file = sftp.file(filepath, 'r')
@@ -1102,7 +1102,6 @@ class RemoteHost(object):
             (datetime.today() - datetime(1970, 1, 1)).days
         )
 
-#        file_content = self.execute('cat %s' % dest)[1]
         new_content = []
         in_file = False
         for line in self.readlines(shadow_file):
