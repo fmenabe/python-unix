@@ -207,22 +207,24 @@ class LocalCopy(threading.Thread):
 
 
 class RemoteCopy(threading.Thread):
-    def __init__(self, src_host, src_path, dest_path, dest_host):
+    def __init__(self, src_host, src_path, dst_host, dst_path):
         threading.Thread.__init__(self)
         self.src_host = src_host
         self.src_path = src_path
-        self.dest_path = dest_path
-        self.dest_host = dest_host
+        self.dst_host = dst_host
+        self.dst_path = dst_path
         self.src_size = float(
             self.src_host.execute('du -s %s' % self.src_path)[1].split()[0]
         )
+        if self.dst_host.exists(self.dst_path):
+            self.dst_host.rm(self.dst_path)
 
 
     def run(self):
-        self.status = self.src_host.copy(
+        self.status = self.src_host.rmt_copy(
             self.src_path,
-            self.dest_path,
-            self.dest_host.hostname,
+            self.dst_host.hostname,
+            self.dst_path,
             method='scp'
         )
 
@@ -230,13 +232,13 @@ class RemoteCopy(threading.Thread):
     def status(self):
         while self.isAlive():
             try:
-                dest_size = float(
-                    self.dest_host.execute('du -s %s' % self.dest_path)[1].split()[0]
+                dst_size = float(
+                    self.dst_host.execute('du -s %s' % self.dst_path)[1].split()[0]
                 )
             except IndexError:
-                dest_size = 0
-            completed = dest_size * 100 / self.src_size
-            flush(msg('%0.2f%%'))
+                dst_size = 0
+            completed = dst_size * 100 / self.src_size
+            flush(msg('%0.2f%%' % completed))
             time.sleep(1)
         flush(msg('       '))
         return self.status
