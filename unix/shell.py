@@ -101,7 +101,7 @@ def fstr(float_number):
 ########                          Print table                           ########
 ################################################################################
 def print_tab_line(columns, format):
-    if format is 'text':
+    if format == 'text':
         line = '+'
         for i in xrange(0, len(columns)):
             size = columns[i]
@@ -113,7 +113,7 @@ def print_tab_line(columns, format):
 
 
 def print_line(columns, values, format):
-    if format is 'text':
+    if format == 'text':
         line = '|'
         for i in xrange(0, len(columns)):
             size = columns[i]
@@ -123,13 +123,10 @@ def print_line(columns, values, format):
                 line += ' '
             line += '|'
         print line
-    elif format is 'csv':
-        line = ''
-        for value in values:
-            line += value.strip()
-        pass
-    elif format is 'wiki':
-        pass
+    elif format == 'csv':
+        print ','.join(values)
+    elif format == 'wiki':
+        print '|'.joint(values)
 
 
 class Copy(threading.Thread):
