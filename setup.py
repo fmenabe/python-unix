@@ -6,7 +6,7 @@ setup(
     version='0.1',
     author='François Ménabé',
     author_email='francois.menabe@gmail.com',
-    packages=['unix'],
+    packages=['unix', 'unix/linux'],
     licence='LICENCE.txt',
     description='Manage (execute command, read/write files, ...) on local or remote Unix systems via SSH.',
     long_description=open('README.txt').read(),
