@@ -9,7 +9,7 @@ setup(
     packages=['unix', 'unix/linux'],
     licence='LICENCE.txt',
     description='Manage (execute command, read/write files, ...) on local or remote Unix systems via SSH.',
-    long_description=open('README.txt').read(),
+    long_description=open('README.md').read(),
     install_requires=[
         'paramiko',
         'pexpect'
