@@ -113,7 +113,7 @@ class Host(object):
         status, stdout, stderr = self.execute('ls %s' % path)
         if not status:
             raise OSError(stderr)
-        return stdout.split('\n')[:-1]
+        return stdout.split('\n')
 
 
     def mkdir(self, path, parents=True):
@@ -304,8 +304,8 @@ class Local(Host):
                 self.return_code = obj.returncode
                 return [
                     True if self.return_code == 0 else False,
-                    stdout,
-                    stderr
+                    '\n'.join(stdout.split('\n')[:-1]),
+                    '\n'.join(stderr.split('\n')[:-1])
                 ]
             except OSError as os_err:
                 return [False, stdout, stderr]
