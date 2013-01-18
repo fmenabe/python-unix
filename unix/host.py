@@ -227,7 +227,7 @@ class Host(object):
         parameter indicate which method (*scp*, *tar*, *sftp*) to use. If method is
         not defined, the **AttributeError** exception is raised."""
         function = getattr(self, '_%s_copy' % method)
-        return function(localpath, hostname, rmtpath, username)
+        return function(localpath, hostname, rmtpath, user)
 
 
     def _scp_copy(self, localpath, hostname, rmtpath, user):
@@ -237,7 +237,7 @@ class Host(object):
             'scp -rp',
             '-o StrictHostKeyChecking=no',
             localpath,
-            '%s@%s:%s' % (username, hostname, rmtpath)
+            '%s@%s:%s' % (user, hostname, rmtpath)
         )))
 
 
@@ -251,7 +251,7 @@ class Host(object):
             os.path.abspath(localpath),
             '|',
             'ssh', '-o StrictHostKeyChecking=no',
-            '%s@%s' % (username, hostname),
+            '%s@%s' % (user, hostname),
             'tar xzf - -C', rmtpath
         )))
 
