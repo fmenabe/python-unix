@@ -88,7 +88,6 @@ def Linux(host, root=''):
                 if not os.path.isabs(path):
                     raise IOError("'%s' is not an absolute path")
                 path = os.path.join(self.root, path[1:])
-            print path
             return super(LinuxHost, self).read(path, **kwargs)
 
 
@@ -99,9 +98,7 @@ def Linux(host, root=''):
                 if not os.path.isabs(path):
                     raise IOError("'%s' is not an absolute path")
                 path = os.path.join(self.root, path[1:])
-            print path
-#            super(LinuxHost, self).write(path, content, **kwargs)
-            return [True, '', '']
+            super(LinuxHost, self).write(path, content, **kwargs)
 
 
         def isloaded(self, module):
@@ -162,7 +159,7 @@ def Linux(host, root=''):
 
         def set_hosts(self, ip, hostname, domain):
             try:
-                self.host.write(
+                self.write(
                     '/etc/hosts',
                     HOSTS_CONTENT \
                         .replace("$(IP)", ip) \
@@ -175,14 +172,19 @@ def Linux(host, root=''):
 
 
         def set_sshkeys(self, algos=['rsa', 'dsa']):
-            sshd_dir = os.path.join(self.root, 'etc/ssh/ssh_host_rsa_key')
-            output = self.host.execute("rm %s/ssh_host_*" % sshd_dir)
-            if not output[0]:
-                output[2] = "Unable to remove old keys: %s" % output[2]
-                return output
+            sshd_dir = '/etc/ssh'
+            keys = [
+                os.path.join(sshd_dir, filename) \
+                for filename in self.listdir(sshd_dir) if 'ssh_host_' in filename
+            ]
+            for key in keys:
+                output = self.execute("rm %s" % key)
+                if not output[0]:
+                    output[2] = "Unable to remove old keys: %s" % output[2]
+                    return output
 
             for algo in algos:
-                output = self.host.execute(
+                output = self.execute(
                     'ssh-keygen -N "" -t %s -f %s/ssh_host_%s_key' % (
                         algo, sshd_dir, algo
                     )

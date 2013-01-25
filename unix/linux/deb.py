@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os.path as path
 import unix
 #from unix.linux import Linux
 
@@ -65,9 +66,9 @@ def Deb(host, root=''):
                     )
 
                 try:
-                    self.host.write(
-                        os.path.join('/etc/network/interfaces.d/', interface_name),
-                        interface_conf
+                    self.write(
+                        path.join('/etc/network/interfaces.d/', interface_name),
+                        '\n'.join(interface_conf)
                     )
                 except IOError as ioerr:
                     return [False, '', ioerr]
@@ -84,15 +85,15 @@ def Deb(host, root=''):
 
 
         def add_key(self, filepath):
-            remote_filepath = os.path.join('/tmp', os.path.basename(filepath))
+            remote_filepath = path.join('/tmp', path.basename(filepath))
             self.get(filepath, remote_filepath)
             return self.execute('apt-key add %s' % remote_filepath)
 
 
         def add_repository(self, filepath):
-            return self.get(filepath, os.path.join(
+            return self.get(filepath, path.join(
                 '/etc/apt/sources.list.d',
-                os.path.basename(filepath)
+                path.basename(filepath)
             ))
 
 
