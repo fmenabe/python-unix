@@ -203,7 +203,7 @@ class Host(object):
         """Replace in **filepath** the occurences of **src_pattern** by
         **dst_pattern**."""
         if not self.isfile(filepath):
-            raise OSError("'%s' is not a file") % filepath
+            raise OSError("'%s' is not a file" % filepath)
 
         return self.execute(
             "sed -i s/%s/%s/g %s"  % (src_pattern, dst_pattern, filepath)
