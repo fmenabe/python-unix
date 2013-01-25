@@ -569,10 +569,7 @@ class Remote(Host):
 
     def read(self, path, **kwargs):
         """Return the content of a file. Use **binary** parameter for binary
-        file."""
-        if not self.isfile(path):
-            raise OSError("'%s' is not a file" % path)
-
+        file. This raise the *IOerror* exception if there is any problem."""
         mode = 'rb' if 'binary' in kwargs and kwargs['binary'] else 'r'
         file_handler = self._sftp.open(path, mode)
         content = file_handler.read()
