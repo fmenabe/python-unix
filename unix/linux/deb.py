@@ -36,20 +36,29 @@ def Deb(host, root=''):
 
 
         def set_network(self, interfaces):
+            # Creating main configuration file.
             try:
                 self.write(
                     '/etc/network/interfaces',
                     '\n'.join((
                         'auto lo',
                         'iface lo inet loopback',
-                        '\n',
+                        '',
                         'source /etc/network/interfaces.d/*'
                     ))
                 )
             except IOError as ioerr:
                 return [False, '', ioerr]
 
-            for interface, index in enumerate(interfaces):
+
+            # Creating the directory where configuration files of each
+            # interfaces are stored.
+            output = self.mkdir('/etc/network/interfaces.d/')
+            if not output[0]:
+                return [False, '', output[2]]
+
+            # For each interface, creating a configuration file
+            for index, interface in enumerate(interfaces):
                 interface_name = 'eth%s' % index
 
                 interface_conf = [
@@ -57,7 +66,6 @@ def Deb(host, root=''):
                     'iface %s inet static' % interface_name,
                     '    address %s' % interface['address'],
                     '    netmask %s' % interface['netmask'],
-                    '\n'
                 ]
                 if 'gateway' in interface:
                     interface_conf.insert(
