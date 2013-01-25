@@ -212,12 +212,11 @@ class Host(object):
 
     def size(self, path):
         """Return the size in Kb of **path**."""
-        if not self.exists(path):
-            raise OSError("'%s' not exists" % path)
+        output = self.execute('du -ks %s' % path)
+        if not output[0]:
+            raise OSError(output[2])
 
-        return int(
-            self.execute('du -ks %s' % path)[1].split()[0]
-        )
+        return int(output[1].split()[0])
 
 
     def rmt_copy(self, localpath, hostname, rmtpath, method='scp', user='root'):
