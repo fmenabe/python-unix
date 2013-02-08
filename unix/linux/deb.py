@@ -7,6 +7,9 @@ import unix
 NO_DEBCONF = "DEBIAN_FRONTEND='noninteractive'"
 """Disable ncurse configuration interface for APT packages."""
 
+NETCONF_FILE = '/etc/network/interfaces'
+NETCONF_DIR = '/etc/network/interfaces.d/'
+
 def Deb(host, root=''):
     unix.isvalid(host)
 
@@ -51,28 +54,10 @@ def Deb(host, root=''):
 
 
         def set_network(self, interfaces):
-            # Creating main configuration file.
-            try:
-                self.write(
-                    '/etc/network/interfaces',
-                    '\n'.join((
-                        'auto lo',
-                        'iface lo inet loopback',
-                        '',
-                        'source /etc/network/interfaces.d/*'
-                    ))
-                )
-            except IOError as ioerr:
-                return [False, '', ioerr]
-
-
-            # Creating the directory where configuration files of each
-            # interfaces are stored.
-            output = self.mkdir('/etc/network/interfaces.d/')
-            if not output[0]:
-                return [False, '', output[2]]
+            main_conf = ['auto lo', 'iface lo inet loopback']
 
             # For each interface, creating a configuration file
+            interfaces_conf = []
             for index, interface in enumerate(interfaces):
                 interface_name = 'eth%s' % index
 
@@ -88,13 +73,36 @@ def Deb(host, root=''):
                         '    gateway %s' % interface['gateway']
                     )
 
-                try:
-                    self.write(
-                        path.join('/etc/network/interfaces.d/', interface_name),
-                        '\n'.join(interface_conf)
-                    )
-                except IOError as ioerr:
-                    return [False, '', ioerr]
+                interfaces_conf.append(interface_conf)
+
+            if self.distribution == 'Ubuntu' and float(self.release) < 11.04:
+                for interface_conf in interfaces_conf:
+                    main_conf.append('')
+                    main_conf.extend(interface_conf)
+            else:
+                # Add a line
+                main_conf.extend(['', 'source %s*' % NETCONF_DIR])
+
+                # Creating the directory where configuration files of each
+                # interfaces are stored.
+                output = self.mkdir(NETCONF_DIR)
+                if not output[0]:
+                    return [False, '', output[2]]
+
+                for index, interface_conf in enumerate(interfaces_conf):
+                    try:
+                        self.write(
+                            path.join(NETCONF_DIR, 'eth%s' % index),
+                            '\n'.join(interface_conf)
+                        )
+                    except IOError as ioerr:
+                        return [False, '', ioerr]
+
+            # Creating main configuration file.
+            try:
+                self.write(NETCONF_FILE, '\n'.join(main_conf))
+            except IOError as ioerr:
+                return [False, '', ioerr]
 
             return [True, '', '']
 
