@@ -27,6 +27,21 @@ def Deb(host, root=''):
             # Check this is a Debian-like system.
 
 
+        @property
+        def distribution(self):
+            return self.execute('lsb_release -i')[1].split(':')[1].strip()
+
+
+        @property
+        def release(self):
+            return self.execute('lsb_release -r')[1].split(':')[1].strip()
+
+
+        @property
+        def codename(self):
+            return self.execute('lsb_release -c')[1].split(':')[1].strip()
+
+
         def set_hostname(self, hostname):
             try:
                 self.write('/etc/hostname', hostname)
