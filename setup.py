@@ -8,8 +8,8 @@ setup(
     author_email='francois.menabe@gmail.com',
     packages=['unix', 'unix/linux'],
     licence='LICENCE.txt',
-    description='Manage (execute command, read/write files, ...) on local or remote Unix systems via SSH.',
-    long_description=open('README.md').read(),
+    description='Manage Unix-like systems.'
+    long_description=open('README').read(),
     install_requires=[
         'paramiko',
         'pexpect'

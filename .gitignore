@@ -1,3 +1,6 @@
+# Ignore README with is a copy of README.md (necessary when uploading to Pypi).
+README
+
 # byte-compiled python files
 *.pyc
 
