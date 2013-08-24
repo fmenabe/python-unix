@@ -9,7 +9,7 @@ setup(
     packages=['unix', 'unix/linux'],
     licence='LICENCE.txt',
     description='Manage Unix-like systems.'
-    long_description=open('README').read(),
+    long_description=open('README.rst').read(),
     install_requires=[
         'paramiko',
         'pexpect'
