@@ -65,7 +65,7 @@ class Host(object):
     @property
     def os_arch(self):
         """Property that return the architecture of the operating system."""
-        return self.execute('uname -a')[1]
+        return self.execute('uname -m')[1]
 
 
     def exists(self, path):
