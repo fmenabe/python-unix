@@ -68,6 +68,10 @@ class Host(object):
         return self.execute('uname -m')[1]
 
 
+    def which(self, command):
+        return self.execute("which %s" % command)[1]
+
+
     def exists(self, path):
         """Return *True* if **path** exists."""
         return self.execute("test -e %s" % path)[0]
