@@ -40,6 +40,17 @@ def Linux(host, root=''):
             self.root = root
 
 
+        @property
+        def distrib(self):
+            if not self.which('lsb_release'):
+                # Use alternative way for finding OS.
+                raise NotImplementedError(
+                    'search linux distribution without using lsb_release')
+            else:
+                return self.execute(
+                    'lsb_release -i')[1].split(':')[1].strip().lower()
+
+
         def __chroot(self):
             """Mount specials filesystems for having a  "valid" chrooted
             environment. This may be needed when install a package in a
