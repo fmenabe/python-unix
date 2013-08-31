@@ -13,5 +13,14 @@ setup(
     install_requires=[
         'paramiko',
         'pexpect'
+    ],
+    classifiers=[
+        'License :: OSI Approved :: MIT License',
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: System Administrators',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Operating System :: Unix',
+        'Topic :: System :: Systems Administration'
     ]
 )
