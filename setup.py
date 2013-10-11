@@ -6,8 +6,9 @@ setup(
     version='0.1',
     author='François Ménabé',
     author_email='francois.menabe@gmail.com',
-    packages=['unix', 'unix/linux'],
-    license=open('LICENSE').read(),
+    download_url="https://github.com/fmenabe/python-unix",
+    packages=['unix'],
+    license="MIT Licence",
     description='Manage Unix-like systems.',
     long_description=open('README.rst').read(),
     install_requires=[
