@@ -27,9 +27,62 @@ class ConnectError(Exception):
     pass
 
 
+class _Path(object):
+    def __init__(self, host):
+        self.__host = host
+
+
+    def exists(self, path):
+        """Return the status of ``test -e`` command."""
+        return self.__host.execute('test', path, e=True)[0]
+
+
+    def isfile(self, path):
+        """Return the status of ``test -f`` command."""
+        return self.__host.execute('test', path, f=True)[0]
+
+
+    def isdir(self, path):
+        """Return the status of ``test -d`` command."""
+        return self.__host.execute('test', path, d=True)[0]
+
+
+    def islink(self, path):
+        """Return the status of ``test -L`` command."""
+        return self.__host.execute('test', path, L=True)[0]
+
+
+    def type(self, path):
+        """Use ``file`` command for retrieving the type of the **path**."""
+        status, stdout = self.__host.execute('file', path)[:-1]
+        if not status:
+            # For unexpected reasons, errors are in stdout!
+            raise OSError(stdout)
+        return stdout[0].split(':')[-1].strip()
+
+
+    def size(self, filepath, **options):
+        return self.__host.execute('du', filepath, **options)
+
+
+class _Processes(object):
+    def __init__(self, host):
+        self.__host = host
+
+
+    def kill(self, pid, **options):
+        return self.__host.execute('kill', pid, **options)
+
+
+
 class Host(object):
     """Class that implement commands that are commons to local or remote
     host."""
+    def __init__(self):
+        self.path = _Path(self)
+        self.processes = _Processes(self)
+
+
     def _format_command(self, command, args, options):
         interactive = options.pop('interactive', False)
         for option, value in options.iteritems():
@@ -45,6 +98,87 @@ class Host(object):
     def execute(self):
         raise NotImplementedError("don't use 'Host' class directly, "
             "use 'Local' or 'Remote' class instead.")
+
+    @property
+    def type(self):
+        """Property that return the type of the operating system by executing
+        ``uname -s`` command."""
+        return self.execute('uname -s')[1][0].lower()
+
+
+    @property
+    def arch(self):
+        """Property that return the architecture of the operating system by
+        executing ``uname -m`` command."""
+        return self.execute('uname -m')[1][0]
+
+
+    @property
+    def hostname(self):
+        return self.execute('hostname')[1][0]
+
+
+    def listdir(self, path):
+        """List files in a directory.
+
+        .. note::
+            As the exception raised is different when using local function
+            ``os.listdir(path)`` or remote function ``sftp.listdir(path)``, this
+            method use ``ls`` command for listing directory and raise the
+            **OSError** exception if **path** not exists or if there is another
+            unexpected error.
+        """
+        if not self.path.isdir(path):
+            raise OSError("'%s' is not a directory" % path)
+
+        status, stdout, stderr = self.execute('ls %s' % path)
+        if not status:
+            raise OSError(stderr)
+
+        return stdout
+
+
+    def touch(self, *paths, **options):
+        return self.execute('touch', *paths, **options)
+
+
+    def mkdir(self, *paths, **options):
+        """Create a directory. *args and **options contains options that can be
+        passed to the command. **options can contain an additionnal key
+        *interactive* that will be pass to ``execute`` function."""
+        return self.execute('mkdir', *paths, **options)
+
+
+    def copy(self, *paths, **options):
+        """Copy **src** file or directory to **dst**. *args and **options
+        contains options that can be passed to the command. **options can
+        contain an additionnal key *interactive* that will be pass to
+        ``execute`` function."""
+        return self.execute('cp', *paths, **options)
+
+
+    def move(self, *paths, **options):
+        return self.execute('mv', *paths, **options)
+
+
+    def remove(self, *paths, **options):
+        return self.execute('rm', *paths, **options)
+
+
+    def chmod(self, permissions, *paths, **options):
+        return self.execute('chmod', permissions, *paths, **options)
+
+
+    def chown(self, owner, *paths, **options):
+        return self.execute('chown', owner, *paths, **options)
+
+
+    def chgrp(self, group, *paths, **options):
+        return self.execute('chgrp', group, *path, **options)
+
+
+    def which(self, command, **options):
+        return self.execute('which', command, **options)[1][0]
 
 
 class Local(Host):
