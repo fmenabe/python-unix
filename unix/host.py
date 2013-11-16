@@ -250,7 +250,8 @@ class Remote(Host):
     def connect(self, host, **kwargs):
         self.username = kwargs.get('username', 'root')
         self.password = kwargs.get('password', '')
-        timeout = kwargs.get('timeout', 5)
+        self.forward_agent = kwargs.get('forwardagent', True)
+        timeout = kwargs.get('timeout', 10)
         use_ipv6 = kwargs.get('ipv6', False)
 
         if IPV4.match(host):
@@ -306,6 +307,10 @@ class Remote(Host):
         interactive = self._format_command(command, args, options)
 
         chan = self._ssh.get_transport().open_session()
+        forward = None
+        if self.forward_agent:
+            forward = paramiko.agent.AgentRequestHandler(chan)
+
         self.return_code = -1
         if interactive:
             chan.settimeout(0.0)
@@ -345,3 +350,7 @@ class Remote(Host):
             return [True if self.return_code == 0 else False,
                 chan.makefile('rb', -1).read().split('\n')[:-1],
                 chan.makefile_stderr('rb', -1).read().split('\n')[:-1]]
+
+        if forward:
+            forward.close()
+        chan.close()
