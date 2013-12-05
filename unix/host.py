@@ -420,8 +420,8 @@ class Remote(Host):
             * **timeout**, timeout in seconds for the connection (default: 5)
             * **ipv6**, boolean that indicate if the connection must use the IPv6 address.
         """
-        username = kwargs['username'] if 'username' in kwargs else 'root'
-        password = kwargs['password'] if 'password' in kwargs else ''
+        self.username = kwargs['username'] if 'username' in kwargs else 'root'
+        self.password = kwargs['password'] if 'password' in kwargs else ''
         timeout = kwargs['timeout'] if 'timeout' in kwargs else 5
         use_ipv6 = True if 'ipv6' in kwargs and kwargs['ipv6'] else False
 
@@ -453,12 +453,12 @@ class Remote(Host):
         try:
             self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             params = {
-                'username': username,
+                'username': self.username,
                 'timeout': timeout,
             }
             # password = '' <=> no password
-            if password:
-                params.setdefault('password', password)
+            if self.password:
+                params.setdefault('password', self.password)
                 params.setdefault('allow_agent', False)
                 params.setdefault('look_for_keys', False)
             self._ssh.connect(self.__ip, **params)
@@ -556,17 +556,16 @@ class Remote(Host):
     def get(self, localpath, rmtpath, method='sftp'):
         """Get the file or directory **localpath** on the remote host to **rmtpath**
         using method **method**. Available methods are *sftp* and *scp*."""
-        self._connected()
         if method == 'sftp':
             return self.sftp_get(local_path, rmt_path)
         else:
-            return LocalHost().rmt_copy(
-                local_path,
+            return Local().rmt_copy(
+                localpath,
                 self.__ip,
-                rmt_path,
+                rmtpath,
                 method,
-                username=self.username,
-                password=self.password
+                user=self.username,
+#                password=self.password
             )
 
 
