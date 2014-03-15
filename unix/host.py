@@ -27,51 +27,6 @@ class ConnectError(Exception):
     pass
 
 
-class _Path(object):
-    def __init__(self, host):
-        self.__host = host
-
-
-    def exists(self, path):
-        """Return the status of ``test -e`` command."""
-        return self.__host.execute('test', path, e=True)[0]
-
-
-    def isfile(self, path):
-        """Return the status of ``test -f`` command."""
-        return self.__host.execute('test', path, f=True)[0]
-
-
-    def isdir(self, path):
-        """Return the status of ``test -d`` command."""
-        return self.__host.execute('test', path, d=True)[0]
-
-
-    def islink(self, path):
-        """Return the status of ``test -L`` command."""
-        return self.__host.execute('test', path, L=True)[0]
-
-
-    def type(self, path):
-        """Use ``file`` command for retrieving the type of the **path**."""
-        status, stdout = self.__host.execute('file', path)[:-1]
-        if not status:
-            # For unexpected reasons, errors are in stdout!
-            raise OSError(stdout)
-        return stdout[0].split(':')[-1].strip()
-
-
-    def size(self, filepath, **options):
-        return self.__host.execute('du', filepath, **options)
-
-
-class _Processes(object):
-    def __init__(self, host):
-        self.__host = host
-
-
-    def kill(self, pid, **options):
-        return self.__host.execute('kill', pid, **options)
 
 
 
@@ -98,6 +53,7 @@ class Host(object):
     def execute(self):
         raise NotImplementedError("don't use 'Host' class directly, "
             "use 'Local' or 'Remote' class instead.")
+
 
     @property
     def type(self):
@@ -128,6 +84,8 @@ class Host(object):
             **OSError** exception if **path** not exists or if there is another
             unexpected error.
         """
+        if not self.path.exists(path):
+            raise OSError("'%s' not exists" % path)
         if not self.path.isdir(path):
             raise OSError("'%s' is not a directory" % path)
 
@@ -354,3 +312,41 @@ class Remote(Host):
         if forward:
             forward.close()
         chan.close()
+
+
+class _Path(object):
+    def __init__(self, host):
+        self._host = host
+
+
+    def exists(self, path):
+        """Return the status of ``test -e`` command."""
+        return self._host.execute('test', path, e=True)[0]
+
+
+    def isfile(self, path):
+        """Return the status of ``test -f`` command."""
+        return self._host.execute('test', path, f=True)[0]
+
+
+    def isdir(self, path):
+        """Return the status of ``test -d`` command."""
+        return self._host.execute('test', path, d=True)[0]
+
+
+    def islink(self, path):
+        """Return the status of ``test -L`` command."""
+        return self._host.execute('test', path, L=True)[0]
+
+
+    def type(self, path):
+        """Use ``file`` command for retrieving the type of the **path**."""
+        status, stdout = self._host.execute('file', path)[:-1]
+        if not status:
+            # For unexpected reasons, errors are in stdout!
+            raise OSError(stdout)
+        return stdout[0].split(':')[-1].strip()
+
+
+    def size(self, filepath, **options):
+        return self._host.execute('du', filepath, **options)
