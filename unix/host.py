@@ -8,6 +8,7 @@ import socket
 import select
 import subprocess
 import paramiko
+import weakref
 
 # Regular expression for matching IPv4 address.
 IPV4 = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
@@ -34,18 +35,19 @@ class Host(object):
     """Class that implement commands that are commons to local or remote
     host."""
     def __init__(self):
-        self.path = _Path(self)
-        self.processes = _Processes(self)
+        self.path = _Path(weakref.ref(self)())
 
 
     def _format_command(self, command, args, options):
         interactive = options.pop('interactive', False)
         for option, value in options.iteritems():
             option = '-%s' % option if len(option) == 1 else '--%s' % option
-            if type(value) is not bool:
-                command.append('%s %s' % (option, value))
-            elif value:
+            if type(value) is bool:
                 command.append(option)
+            elif type(value) in (list, tuple, set):
+                command.extend('%s %s' % (option, val) for val in value)
+            else:
+                command.append('%s %s' % (option, value))
         command.extend(args)
         return interactive
 
@@ -229,7 +231,7 @@ class Remote(Host):
         if not self.ipv4 and not self.ipv6:
             raise ConnectError("unable to get an IPv4 or an IPv6 addresse.")
 
-        self.__ip = self.ipv6 if self.ipv6 and use_ipv6 else self.ipv4
+        self.ip = self.ipv6 if self.ipv6 and use_ipv6 else self.ipv4
         self._ssh = paramiko.SSHClient()
         try:
             self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -239,7 +241,7 @@ class Remote(Host):
                     'password': self.password,
                     'allow_agent': kwargs.get('allow_agent', False),
                     'look_for_keys': kwargs.get('look_for_keys', False)})
-            self._ssh.connect(self.__ip, **params)
+            self._ssh.connect(self.ip, **params)
         except Exception as err:
             raise ConnectError(err)
         self._connected = True
