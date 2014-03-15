@@ -379,7 +379,7 @@ class _Remote(object):
         self._host = host
 
 
-    def _format_scp_arg(self, user, host, filepath):
+    def _format_ssh_arg(self, user, host, filepath):
         print user, host, filepath
         return (('%s@' % user if (user and host) else '')
             + ('%s:' % host if host else '')
@@ -407,12 +407,21 @@ class _Remote(object):
             for opt, default in SCP_DEFAULT_OPTS.items() if opt not in cur_opts)
 
         # Format source and destination arguments.
-        src = self._format_scp_arg(
+        src = self._format_ssh_arg(
             kwargs.pop('src_user', ''), kwargs.pop('src_host', ''), src_file)
-        dst = self._format_scp_arg(
+        dst = self._format_ssh_arg(
             kwargs.pop('dst_user', ''), kwargs.pop('dst_host', ''), dst_file)
 
         return self._host.execute('scp', src, dst, **kwargs)
+
+
+    def rsync(self, src_file, dst_file, **kwargs):
+        src = self._format_ssh_arg(
+            kwargs.pop('src_user', ''), kwargs.pop('src_host', ''), src_file)
+        dst = self._format_ssh_arg(
+            kwargs.pop('dst_user', ''), kwargs.pop('dst_host', ''), dst_file)
+
+        return self._host.execute('rsync', src, dst, **kwargs)
 
 
     def get(self, rmthost, rmtpath, localpath, **kwargs):
@@ -424,6 +433,8 @@ class _Remote(object):
 
         return {
             'scp': lambda: self.scp(
+                rmtpath, localpath, src_host=rmthost, src_user=rmtuser, **kwargs),
+            'rsync': lambda: self.rsync(
                 rmtpath, localpath, src_host=rmthost, src_user=rmtuser, **kwargs),
         }.get(method, lambda: [False, [], ["unknown copy method '%s'" % method]])()
 
@@ -437,5 +448,7 @@ class _Remote(object):
 
         return {
             'scp': lambda: self.scp(
+                localpath, rmtpath, dst_host=rmthost, dst_user=rmtuser, **kwargs),
+            'rsync': lambda: self.rsync(
                 localpath, rmtpath, dst_host=rmthost, dst_user=rmtuser, **kwargs),
         }.get(method, lambda: [False, '', "unknown method '%s'" % method])()
