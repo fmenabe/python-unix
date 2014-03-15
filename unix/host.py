@@ -9,6 +9,7 @@ import select
 import subprocess
 import paramiko
 import weakref
+import unix
 
 # Regular expression for matching IPv4 address.
 IPV4 = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
@@ -20,6 +21,23 @@ IPV6 = re.compile(
 
 # Locale for all commands in order to have all outputs in english.
 LOCALE = 'LC_ALL=en_US.utf-8'
+
+# Extra arguments for 'scp' command as integer argument name raise syntax error
+# when there are passed directly but not in kwargs.
+SCP_EXTRA_ARGS = {
+    'force_protocol1': '1',
+    'force_protocol2': '2',
+    'force_localhost': '3',
+    'force_ipv4': '4',
+    'force_ipv6': '6'
+}
+
+# Set some default value for SSH options of 'scp' command.
+SCP_DEFAULT_OPTS = {
+    'StrictHostKeyChecking': 'no',
+    'ConnectTimeout': '2'
+}
+
 
 
 class ConnectError(Exception):
@@ -36,6 +54,7 @@ class Host(object):
     host."""
     def __init__(self):
         self.path = _Path(weakref.ref(self)())
+        self.remote = _Remote(weakref.ref(self)())
 
 
     def _format_command(self, command, args, options):
@@ -352,3 +371,71 @@ class _Path(object):
 
     def size(self, filepath, **options):
         return self._host.execute('du', filepath, **options)
+
+
+
+class _Remote(object):
+    def __init__(self, host):
+        self._host = host
+
+
+    def _format_scp_arg(self, user, host, filepath):
+        print user, host, filepath
+        return (('%s@' % user if (user and host) else '')
+            + ('%s:' % host if host else '')
+            + (filepath))
+
+
+    def scp(self, src_file, dst_file, **kwargs):
+        # ssh_options (-o) can be passed many time so this must be a list.
+        kwargs['o'] = kwargs.get('o', [])
+        if type(kwargs['o']) not in (list, tuple):
+            raise AttributeError("'o' argument of 'scp' function must be a list"
+                " as there can be many SSH options passed to the command.")
+
+        # Python don't like when argument name is an integer but passing them
+        # with kwargs seems to work. So use extra argument for interger options
+        # of scp command.
+        for mapping, opt in SCP_EXTRA_ARGS.items():
+            if kwargs.pop(mapping, False):
+                kwargs.setdefault(opt, True)
+
+        # Change default value of some SSH options (like host key checking and
+        # connect timeout).
+        cur_opts = [opt.split('=')[0] for opt in kwargs['o']]
+        kwargs['o'].extend('%s=%s' % (opt, default)
+            for opt, default in SCP_DEFAULT_OPTS.items() if opt not in cur_opts)
+
+        # Format source and destination arguments.
+        src = self._format_scp_arg(
+            kwargs.pop('src_user', ''), kwargs.pop('src_host', ''), src_file)
+        dst = self._format_scp_arg(
+            kwargs.pop('dst_user', ''), kwargs.pop('dst_host', ''), dst_file)
+
+        return self._host.execute('scp', src, dst, **kwargs)
+
+
+    def get(self, rmthost, rmtpath, localpath, **kwargs):
+        if unix.ishost(self._host, 'Remote') and rmthost == 'localhost':
+            return Local().remote.put(rmtpath, self._host.ip, localpath, **kwargs)
+
+        method = kwargs.pop('method', 'scp')
+        rmtuser = kwargs.pop('rmtuser', 'root')
+
+        return {
+            'scp': lambda: self.scp(
+                rmtpath, localpath, src_host=rmthost, src_user=rmtuser, **kwargs),
+        }.get(method, lambda: [False, [], ["unknown copy method '%s'" % method]])()
+
+
+    def put(self, localpath, rmthost, rmtpath, **kwargs):
+        if unix.ishost(self._host, 'Remote') and rmthost == 'localhost':
+            return Local().remote.get(self.host.ip, localpath, rmtpath, **kwargs)
+
+        method = kwargs.pop('method', 'scp')
+        rmtuser = kwargs.pop('rmtuser', 'root')
+
+        return {
+            'scp': lambda: self.scp(
+                localpath, rmtpath, dst_host=rmthost, dst_user=rmtuser, **kwargs),
+        }.get(method, lambda: [False, '', "unknown method '%s'" % method])()
