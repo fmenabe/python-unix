@@ -39,6 +39,20 @@ SCP_DEFAULT_OPTS = {
 }
 
 
+def format_command(command, args, options):
+    interactive = options.pop('interactive', False)
+    for option, value in options.iteritems():
+        option = ('-%s' % option
+            if len(option) == 1 else '--%s' % option.replace('_', '-'))
+        if type(value) is bool:
+            command.append(option)
+        elif type(value) in (list, tuple, set):
+            command.extend('%s %s' % (option, val) for val in value)
+        else:
+            command.append('%s %s' % (option, value))
+    command.extend(args)
+    return interactive
+
 
 class ConnectError(Exception):
     """Exception raised by a **Remote** object when it is not possible to
@@ -55,20 +69,6 @@ class Host(object):
     def __init__(self):
         self.path = _Path(weakref.ref(self)())
         self.remote = _Remote(weakref.ref(self)())
-
-
-    def _format_command(self, command, args, options):
-        interactive = options.pop('interactive', False)
-        for option, value in options.iteritems():
-            option = '-%s' % option if len(option) == 1 else '--%s' % option
-            if type(value) is bool:
-                command.append(option)
-            elif type(value) in (list, tuple, set):
-                command.extend('%s %s' % (option, val) for val in value)
-            else:
-                command.append('%s %s' % (option, value))
-        command.extend(args)
-        return interactive
 
 
     def execute(self):
@@ -175,7 +175,7 @@ class Local(Host):
         inputs) and stdout and stderr are empty. The return code of the last
         command is put in *return_code* attribut."""
         command = [LOCALE, command]
-        interactive = self._format_command(command, args, options)
+        interactive = format_command(command, args, options)
 
         self.return_code = -1
         if interactive:
@@ -283,7 +283,7 @@ class Remote(Host):
                 'you must be connected to a host before executing commands')
 
         command = [LOCALE, command]
-        interactive = self._format_command(command, args, options)
+        interactive = format_command(command, args, options)
 
         chan = self._ssh.get_transport().open_session()
         forward = None
