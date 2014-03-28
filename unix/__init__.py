@@ -10,6 +10,13 @@ import subprocess
 import paramiko
 import weakref
 
+#
+# Logs.
+#
+import logging
+logger = logging.getLogger('unix')
+logger.setLevel('INFO')
+
 
 #
 # Constants
@@ -65,7 +72,7 @@ def format_command(command, args, options):
         else:
             command.append('%s %s' % (option, value))
     command.extend(args)
-    logger.debug('[execute] %s' % ' '.join(command))
+    logger.debug('[execute] %s' % ' '.join(map(str, command)))
     return interactive
 
 
