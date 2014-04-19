@@ -94,12 +94,29 @@ class UnknonwUser(Exception):
 class Host(object):
     """Class that implement commands that are commons to local or remote
     host."""
-    def __init__(self):
-        self.path = _Path(weakref.ref(self)())
-        self.remote = _Remote(weakref.ref(self)())
-        self.users = _Users(weakref.ref(self)())
-        self.groups = _Groups(weakref.ref(self)())
-        self.processes = _Processes(weakref.ref(self)())
+    @property
+    def path(self):
+        return _Path(weakref.ref(self)())
+
+
+    @property
+    def remote(self):
+        return _Remote(weakref.ref(self)())
+
+
+    @property
+    def users(self):
+        return _Users(weakref.ref(self)())
+
+
+    @property
+    def groups(self):
+        return _Groups(weakref.ref(self)())
+
+
+    @property
+    def processes(self):
+        return _Processes(weakref.ref(self)())
 
 
     def execute(self):
