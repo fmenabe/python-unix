@@ -71,6 +71,11 @@ class ConnectError(Exception):
     establish a connection."""
     pass
 
+
+class MountError(Exception):
+    pass
+
+
 class InvalidUser(Exception):
     pass
 
@@ -173,6 +178,20 @@ class Host(object):
         if not self.username == 'root':
             raise InvalidUser(
                 "you need to be root for executing command '%s'" % command)
+
+
+    def mount(self, *args, **options):
+        with self.set_options_behaviour('before'):
+            status, stderr = self.execute('mount', *args, **options)[::2]
+            if not status:
+                raise MountError(stderr)
+
+
+    def umount(self, *args, **options):
+        with self.set_options_behaviour('before'):
+            status, stderr = self.execute('umount', *args, **options)[::2]
+            if not status:
+                raise MountError(stderr)
 
 
     def listdir(self, path):
