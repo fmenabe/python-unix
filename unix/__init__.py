@@ -25,28 +25,29 @@ logger = logging.getLogger('unix')
 IPV4 = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
 
 # Regular expression for matching IPv6 address.
-IPV6 = re.compile(
-    '^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
-    '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}$')
+IPV6 = re.compile('^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
+                  '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
+                  '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}$')
 
 # Locale for all commands in order to have all outputs in english.
 LOCALE = 'LC_ALL=en_US.utf-8'
 
 # Extra arguments for 'scp' command as integer argument name raise syntax error
 # when there are passed directly but not in kwargs.
-SCP_EXTRA_ARGS = {
-    'force_protocol1': '1',
-    'force_protocol2': '2',
-    'force_localhost': '3',
-    'force_ipv4': '4',
-    'force_ipv6': '6'
-}
+SCP_EXTRA_ARGS = {'force_protocol1': '1',
+                  'force_protocol2': '2',
+                  'force_localhost': '3',
+                  'force_ipv4': '4',
+                  'force_ipv6': '6'}
 
 # Set some default value for SSH options of 'scp' command.
-SCP_DEFAULT_OPTS = {
-    'StrictHostKeyChecking': 'no',
-    'ConnectTimeout': '2'
-}
+SCP_DEFAULT_OPTS = {'StrictHostKeyChecking': 'no',
+                    'ConnectTimeout': '2'}
+
+# /etc/passwd fields.
+PASSWD_FIELDS = ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell')
+# /etc/group fields.
+GROUP_FIELDS = ('name', 'password', 'gid', 'users')
 
 
 #
@@ -135,7 +136,8 @@ class Host(object):
 
         for option, value in options.iteritems():
             option = ('-%s' % option
-                if len(option) == 1 else '--%s' % option.replace('_', '-'))
+                      if len(option) == 1
+                      else '--%s' % option.replace('_', '-'))
             if type(value) is bool:
                 command.append(option)
             elif type(value) in (list, tuple, set):
@@ -175,8 +177,8 @@ class Host(object):
 
     def asroot(self, command):
         if not self.username == 'root':
-            raise InvalidUser(
-                "you need to be root for executing command '%s'" % command)
+            raise InvalidUser("you need to be root for executing command "
+                              "'%s'" % command)
 
 
     def mount(self, *args, **options):
@@ -208,7 +210,7 @@ class Host(object):
         if not self.path.isdir(path):
             raise OSError("'%s' is not a directory" % path)
 
-        status, stdout, stderr = self.execute('ls %s' % path)
+        status, stdout, stderr = self.execute('ls', path)
         if not status:
             raise OSError(stderr)
 
@@ -262,9 +264,7 @@ class Host(object):
         status, stdout, stderr = self._host.execute('getent', 'passwd')
         if not status:
             raise UserError(stderr)
-        return [dict(zip(
-            ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell'),
-            user.split(':'))) for user in stdout]
+        return [dict(zip(PASSWD_FIELDS, user.split(':'))) for user in stdout]
 
 
 #
@@ -294,19 +294,23 @@ class Local(Host):
         self.return_code = -1
         if interactive:
             try:
-                self.return_code = subprocess.call(
-                    ' '.join(command), shell=True, stderr=subprocess.STDOUT)
+                self.return_code = subprocess.call(' '.join(command),
+                                                   shell=True,
+                                                   stderr=subprocess.STDOUT)
                 return [True if self.return_code == 0 else False, '', '']
             except subprocess.CalledProcessError as err:
                 return [False, '', err]
         else:
             try:
                 obj = subprocess.Popen(' '.join(map(str, command)),
-                    shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                       shell=True,
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE)
                 stdout, stderr = obj.communicate()
                 self.return_code = obj.returncode
                 return [True if self.return_code == 0 else False,
-                    stdout.split('\n')[:-1], stderr.split('\n')[:-1]]
+                        stdout.split('\n')[:-1],
+                        stderr.split('\n')[:-1]]
             except OSError as err:
                 return [False, '', err]
 
@@ -356,9 +360,12 @@ class Remote(Host):
 
     def __fqdn(self):
         try:
-            return (socket.gethostbyaddr(self.ipv4)[0]
-                if self.ipv4
-                else (socket.gethostbyadd(self.ipv6)[0] if self.ipv6 else ''))
+            if self.ipv4:
+                return socket.gethostbyaddr(self.ipv4)[0]
+            elif self.ipv6:
+                return socket.gethostbyadd(self.ipv6)[0]
+            else:
+                return ''
         except socket.herror:
             return ''
 
@@ -371,17 +378,11 @@ class Remote(Host):
         use_ipv6 = kwargs.get('ipv6', False)
 
         if IPV4.match(host):
-            self.ipv4 = host
-            self.fqdn = self.__fqdn()
-            self.ipv6 = self.__ipv6()
+            self.ipv4, self.fqdn, self.ipv6 = host, self.__fqdn(), self.__ipv6()
         elif IPV6.match(host):
-            self.ipv6 = host
-            self.fqdn = self.__fqdn()
-            self.ipv4 = self.__ipv4()
+            self.ipv4, self.fqdn, self.ipv6 = self.__ipv4(), self.__fqdn(), host
         else:
-            self.fqdn = host
-            self.ipv4 = self.__ipv4()
-            self.ipv6 = self.__ipv6()
+            self.ipv4, self.fqdn, self.ipv6 = self.__ipv4(), host, self.__ipv6()
             self.fqdn = self.__fqdn()
 
         if not self.ipv4 and not self.ipv6:
@@ -393,10 +394,10 @@ class Remote(Host):
             self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             params = {'username': self.username, 'timeout': timeout}
             if self.password:
-                params.update({
-                    'password': self.password,
-                    'allow_agent': kwargs.get('allow_agent', False),
-                    'look_for_keys': kwargs.get('look_for_keys', False)})
+                params.update({'password': self.password,
+                               'allow_agent': kwargs.get('allow_agent', False),
+                               'look_for_keys': kwargs.get('look_for_keys',
+                                                           False)})
             self._ssh.connect(self.ip, **params)
         except Exception as err:
             raise ConnectError(err)
@@ -418,8 +419,8 @@ class Remote(Host):
 
     def execute(self, command, *args, **options):
         if not self._connected:
-            raise ConnectError(
-                'you must be connected to a host before executing commands')
+            raise ConnectError('you must be connected to a host before '
+                               'executing commands')
 
         command = [LOCALE, command]
         interactive = self._format_command(command, args, options)
@@ -525,8 +526,10 @@ class _Remote(object):
 
     def _format_ssh_arg(self, user, host, filepath):
         return (('%s@' % user if (user and host) else '')
-            + (host or '')
-            + (('%s%s' % (':' if host else '', filepath)) if filepath else ''))
+                + (host or '')
+                + (('%s%s' % (':' if host else '', filepath))
+                   if filepath
+                   else ''))
 
 
     def scp(self, src_file, dst_file, **kwargs):
@@ -534,7 +537,8 @@ class _Remote(object):
         kwargs['o'] = kwargs.get('o', [])
         if type(kwargs['o']) not in (list, tuple):
             raise AttributeError("'o' argument of 'scp' function must be a list"
-                " as there can be many SSH options passed to the command.")
+                                 " as there can be many SSH options passed to "
+                                 "the command.")
 
         # Python don't like when argument name is an integer but passing them
         # with kwargs seems to work. So use extra arguments for interger options
@@ -547,31 +551,38 @@ class _Remote(object):
         # connect timeout).
         cur_opts = [opt.split('=')[0] for opt in kwargs['o']]
         kwargs['o'].extend('%s=%s' % (opt, default)
-            for opt, default in SCP_DEFAULT_OPTS.items() if opt not in cur_opts)
+                           for opt, default in SCP_DEFAULT_OPTS.items()
+                           if opt not in cur_opts)
 
         # Format source and destination arguments.
-        src = self._format_ssh_arg(
-            kwargs.pop('src_user', ''), kwargs.pop('src_host', ''), src_file)
-        dst = self._format_ssh_arg(
-            kwargs.pop('dst_user', ''), kwargs.pop('dst_host', ''), dst_file)
+        src = self._format_ssh_arg(kwargs.pop('src_user', ''),
+                                   kwargs.pop('src_host', ''),
+                                   src_file)
+        dst = self._format_ssh_arg(kwargs.pop('dst_user', ''),
+                                   kwargs.pop('dst_host', ''),
+                                   dst_file)
 
         return self._host.execute('scp', src, dst, **kwargs)
 
 
     def rsync(self, src_file, dst_file, **kwargs):
-        src = self._format_ssh_arg(
-            kwargs.pop('src_user', ''), kwargs.pop('src_host', ''), src_file)
-        dst = self._format_ssh_arg(
-            kwargs.pop('dst_user', ''), kwargs.pop('dst_host', ''), dst_file)
+        src = self._format_ssh_arg(kwargs.pop('src_user', ''),
+                                   kwargs.pop('src_host', ''),
+                                   src_file)
+        dst = self._format_ssh_arg(kwargs.pop('dst_user', ''),
+                                   kwargs.pop('dst_host', ''),
+                                   dst_file)
 
         return self._host.execute('rsync', src, dst, **kwargs)
 
 
     def tar(self, src_file, dst_file, src_opts={}, dst_opts={}, **kwargs):
-        src_ssh = '%s' % self._format_ssh_arg(
-            kwargs.pop('src_user', ''), kwargs.pop('src_host', ''), '')
-        dst_ssh = '%s' % self._format_ssh_arg(
-            kwargs.pop('dst_user', ''), kwargs.pop('dst_host', ''), '')
+        src_ssh = '%s' % self._format_ssh_arg(kwargs.pop('src_user', ''),
+                                              kwargs.pop('src_host', ''),
+                                              '')
+        dst_ssh = '%s' % self._format_ssh_arg(kwargs.pop('dst_user', ''),
+                                              kwargs.pop('dst_host', ''),
+                                              '')
 
         interactive = kwargs.pop('interactive', False)
 
@@ -595,35 +606,59 @@ class _Remote(object):
 
     def get(self, rmthost, rmtpath, localpath, **kwargs):
         if ishost(self._host, 'Remote') and rmthost == 'localhost':
-            return Local().remote.put(rmtpath, self._host.ip, localpath, **kwargs)
+            return Local().remote.put(rmtpath,
+                                      self._host.ip,
+                                      localpath,
+                                      **kwargs)
 
         method = kwargs.pop('method', 'scp')
         rmtuser = kwargs.pop('rmtuser', 'root')
 
         return {
-            'scp': lambda: self.scp(
-                rmtpath, localpath, src_host=rmthost, src_user=rmtuser, **kwargs),
-            'rsync': lambda: self.rsync(
-                rmtpath, localpath, src_host=rmthost, src_user=rmtuser, **kwargs),
-            'tar': lambda: self.tar(
-                rmtpath, localpath, src_host=rmthost, src_user=rmtuser, **kwargs),
+            'scp': lambda: self.scp(rmtpath,
+                                    localpath,
+                                    src_host=rmthost,
+                                    src_user=rmtuser,
+                                    **kwargs),
+            'rsync': lambda: self.rsync(rmtpath,
+                                        localpath,
+                                        src_host=rmthost,
+                                        src_user=rmtuser,
+                                        **kwargs),
+            'tar': lambda: self.tar(rmtpath,
+                                    localpath,
+                                    src_host=rmthost,
+                                    src_user=rmtuser,
+                                    **kwargs),
         }.get(method, lambda: [False, [], ["unknown copy method '%s'" % method]])()
 
 
     def put(self, localpath, rmthost, rmtpath, **kwargs):
         if ishost(self._host, 'Remote') and rmthost == 'localhost':
-            return Local().remote.get(self.host.ip, localpath, rmtpath, **kwargs)
+            return Local().remote.get(self.host.ip,
+                                      localpath,
+                                      rmtpath,
+                                      **kwargs)
 
         method = kwargs.pop('method', 'scp')
         rmtuser = kwargs.pop('rmtuser', 'root')
 
         return {
-            'scp': lambda: self.scp(
-                localpath, rmtpath, dst_host=rmthost, dst_user=rmtuser, **kwargs),
-            'rsync': lambda: self.rsync(
-                localpath, rmtpath, dst_host=rmthost, dst_user=rmtuser, **kwargs),
-            'tar': lambda: self.tar(
-                localpath, rmtpath, dst_host=rmthost, dst_user=rmtuser, **kwargs),
+            'scp': lambda: self.scp(localpath,
+                                    rmtpath,
+                                    dst_host=rmthost,
+                                    dst_user=rmtuser,
+                                    **kwargs),
+            'rsync': lambda: self.rsync(localpath,
+                                        rmtpath,
+                                        dst_host=rmthost,
+                                        dst_user=rmtuser,
+                                        **kwargs),
+            'tar': lambda: self.tar(localpath,
+                                    rmtpath,
+                                    dst_host=rmthost,
+                                    dst_user=rmtuser,
+                                    **kwargs),
         }.get(method, lambda: [False, '', "unknown method '%s'" % method])()
 
 
@@ -639,9 +674,7 @@ class _Users(object):
         status, stdout, stderr = self._host.execute('getent', 'passwd')
         if not status:
             raise UserError(stderr)
-        return [dict(zip(
-            ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell'),
-            user.split(':'))) for user in stdout]
+        return [dict(zip(PASSWD_FIELDS, user.split(':'))) for user in stdout]
 
 
     def list(self):
@@ -670,9 +703,7 @@ class _Users(object):
         status, stdout, stderr = self._host.execute('getent', 'passwd', uid)
         if not status:
             raise UserError(stderr)
-        return dict(zip(
-            ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell'),
-            stdout[0].split('')))
+        return dict(zip(PASSWD_FIELDS, stdout[0].split('')))
 
 
     def add(self, user, **kwargs):
@@ -704,8 +735,7 @@ class _Groups(object):
             raise UserError(stderr)
         groups = []
         for line in stdout:
-            group = dict(
-                zip(('name', 'password', 'gid', 'users'), line.split(':')))
+            group = dict(zip(GROUP_FIELDS, line.split(':')))
             group['users'] = group['users'].split(',') if group['users'] else []
         return groups
 
