@@ -280,6 +280,26 @@ class Local(Host):
 
 
 #
+# Context Manager for connecting to a remote host.
+#
+class connect(object):
+    def __init__(self, host, **kwargs):
+        self.hostname = host
+        self.options = kwargs
+
+
+    def __enter__(self):
+        self._host = Remote()
+        self._host.connect(self.hostname, **self.options)
+        return self._host
+
+
+    def __exit__(self, type, value, traceback):
+        self._host.disconnect()
+        del(self._host)
+
+
+#
 # Class for managing a remote host with SSH (paramiko).
 #
 class Remote(Host):
