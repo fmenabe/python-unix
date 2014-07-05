@@ -9,6 +9,7 @@ import select
 import subprocess
 import paramiko
 import weakref
+from six import iteritems
 from contextlib import contextmanager
 
 #
@@ -134,7 +135,7 @@ class Host(object):
         if self._options_behaviour == 'after':
             command.extend(args)
 
-        for option, value in options.iteritems():
+        for option, value in iteritems(options):
             option = ('-%s' % option
                       if len(option) == 1
                       else '--%s' % option.replace('_', '-'))
