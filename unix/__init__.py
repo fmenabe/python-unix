@@ -725,3 +725,15 @@ class _Groups(object):
         for group in self.list():
             if group['name'] == groupname:
                 return group['users']
+
+
+#
+# Class for managing process.
+#
+class _Processes(object):
+    def __init__(self, host):
+        self._host = host
+
+
+    def kill(self, pid, **options):
+        return self._host.execute('kill', pid, **options)
