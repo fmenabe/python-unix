@@ -670,3 +670,58 @@ class _Users(object):
     def update(self, user, **kwargs):
         self._host.asroot('usermod')
         return self._host.execute('usermod', user, **kwargs)
+
+
+#
+# Class for managing groups.
+#
+class _Groups(object):
+    def __init__(self, host):
+        self._host = host
+
+
+    def list(self):
+        status, stdout, stderr = self._host.execute('getent', 'group')
+        if not status:
+            raise UserError(stderr)
+        groups = []
+        for line in stdout:
+            group = dict(
+                zip(('name', 'password', 'gid', 'users'), line.split(':')))
+            group['users'] = group['users'].split(',') if group['users'] else []
+        return groups
+
+
+    def gid(self, groupname):
+        status, stdout, stderr = self._host.execute('id', g=username)
+        if not status:
+            raise UserError(stderr)
+        return int(stdout[0])
+
+
+    def groupname(self, gid):
+        status, stdout, stderr = self._host.execute('getent', 'group', gid)
+        if not status:
+            raise UserError(stderr)
+        return stdout[0].split(':')[0]
+
+
+    def add(self, group, **kwargs):
+        self._host.asroot('groupadd')
+        return self._host.execute('groupadd', group, **kwargs)
+
+
+    def delete(self, group):
+        self._host.asroot('groupdel')
+        return self._host.execute('groupdel', group)
+
+
+    def update(self, group, **kwargs):
+        self._host.asroot('groupmod')
+        return self._host.execute('groupmod', group, **kwargs)
+
+
+    def users(self, groupname):
+        for group in self.list():
+            if group['name'] == groupname:
+                return group['users']
