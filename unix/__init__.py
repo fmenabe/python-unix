@@ -9,6 +9,7 @@ import select
 import subprocess
 import paramiko
 import weakref
+from contextlib import contextmanager
 
 #
 # Logs.
@@ -60,20 +61,6 @@ def ishost(host, value):
     return True if value in instances(host) else False
 
 
-def format_command(command, args, options):
-    interactive = options.pop('interactive', False)
-    for option, value in options.iteritems():
-        option = ('-%s' % option
-            if len(option) == 1 else '--%s' % option.replace('_', '-'))
-        if type(value) is bool:
-            command.append(option)
-        elif type(value) in (list, tuple, set):
-            command.extend('%s %s' % (option, val) for val in value)
-        else:
-            command.append('%s %s' % (option, value))
-    command.extend(args)
-    logger.debug('[execute] %s' % ' '.join(map(str, command)))
-    return interactive
 
 
 #
@@ -94,6 +81,10 @@ class UnknonwUser(Exception):
 class Host(object):
     """Class that implement commands that are commons to local or remote
     host."""
+    def __init__(self):
+        self._options_behaviour = 'before'
+
+
     @property
     def path(self):
         return _Path(weakref.ref(self)())
@@ -117,6 +108,37 @@ class Host(object):
     @property
     def processes(self):
         return _Processes(weakref.ref(self)())
+
+
+    @contextmanager
+    def set_options_behaviour(self, behaviour):
+        cur_behaviour = self._options_behaviour
+        try:
+            self._options_behaviour = behaviour
+            yield None
+        finally:
+            self._options_behaviour = cur_behaviour
+
+
+    def _format_command(self, command, args, options):
+        interactive = options.pop('interactive', False)
+        if self._options_behaviour == 'after':
+            command.extend(args)
+
+        for option, value in options.iteritems():
+            option = ('-%s' % option
+                if len(option) == 1 else '--%s' % option.replace('_', '-'))
+            if type(value) is bool:
+                command.append(option)
+            elif type(value) in (list, tuple, set):
+                command.extend('%s %s' % (option, val) for val in value)
+            else:
+                command.append('%s %s' % (option, value))
+
+        if self._options_behaviour == 'before':
+            command.extend(args)
+        logger.debug('[execute] %s' % ' '.join(map(str, command)))
+        return interactive
 
 
     def execute(self):
@@ -235,7 +257,7 @@ class Local(Host):
         inputs) and stdout and stderr are empty. The return code of the last
         command is put in *return_code* attribut."""
         command = [LOCALE, command]
-        interactive = format_command(command, args, options)
+        interactive = self._format_command(command, args, options)
 
         self.return_code = -1
         if interactive:
@@ -348,7 +370,7 @@ class Remote(Host):
                 'you must be connected to a host before executing commands')
 
         command = [LOCALE, command]
-        interactive = format_command(command, args, options)
+        interactive = self._format_command(command, args, options)
 
         chan = self._ssh.get_transport().open_session()
         forward = None
@@ -504,12 +526,12 @@ class _Remote(object):
         src_cmd = ['tar cf -']
         src_opts.update(kwargs)
         src_opts.setdefault('C', os.path.dirname(src_file))
-        format_command(src_cmd, [os.path.basename(src_file)], src_opts)
+        self._format_command(src_cmd, [os.path.basename(src_file)], src_opts)
 
         dst_cmd = ['tar xf -']
         dst_opts.update(kwargs)
         dst_opts.setdefault('C', dst_file)
-        format_command(dst_cmd, [], dst_opts)
+        self._format_command(dst_cmd, [], dst_opts)
 
         cmd = ['ssh %s' % src_ssh if src_ssh else '']
         cmd.extend(src_cmd)
