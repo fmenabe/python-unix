@@ -71,7 +71,11 @@ class ConnectError(Exception):
     establish a connection."""
     pass
 
-class UnknonwUser(Exception):
+class InvalidUser(Exception):
+    pass
+
+
+class UserError(Exception):
     pass
 
 
@@ -165,6 +169,12 @@ class Host(object):
         return self.execute('hostname')[1][0]
 
 
+    def asroot(self, command):
+        if not self.username == 'root':
+            raise InvalidUser(
+                "you need to be root for executing command '%s'" % command)
+
+
     def listdir(self, path):
         """List files in a directory.
 
@@ -233,7 +243,7 @@ class Host(object):
     def getent(self, database, key='', mapping=[]):
         status, stdout, stderr = self._host.execute('getent', 'passwd')
         if not status:
-            raise UnknownUser(stderr)
+            raise UserError(stderr)
         return [dict(zip(
             ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell'),
             user.split(':'))) for user in stdout]
@@ -246,6 +256,10 @@ class Local(Host):
     """Implementing specifics functions of localhost."""
     def __init__(self):
         Host.__init__(self)
+
+    @property
+    def username(self):
+        return self.users.username(os.getuid())
 
 
     def execute(self, command, *args, **options):
@@ -593,3 +607,66 @@ class _Remote(object):
             'tar': lambda: self.tar(
                 localpath, rmtpath, dst_host=rmthost, dst_user=rmtuser, **kwargs),
         }.get(method, lambda: [False, '', "unknown method '%s'" % method])()
+
+
+#
+# Class for managing users.
+#
+class _Users(object):
+    def __init__(self, host):
+        self._host = host
+
+
+    def details(self):
+        status, stdout, stderr = self._host.execute('getent', 'passwd')
+        if not status:
+            raise UserError(stderr)
+        return [dict(zip(
+            ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell'),
+            user.split(':'))) for user in stdout]
+
+
+    def list(self):
+        return [user['login'] for user in self.details()]
+
+
+    def uid(self, username):
+        status, stdout, stderr = self._host.execute('id', u=username)
+        if not status:
+            raise UserError(stderr)
+        return int(stdout[0])
+
+
+    def username(self, uid):
+        status, stdout, stderr = self._host.execute('getent', 'passwd', uid)
+        if not status:
+            raise UserError(stderr)
+        return stdout[0].split(':')[0]
+
+
+    def groups(self, username):
+        status, stdout, stderr = self._host.execute('id', G=username)
+
+
+    def detail(self, uid):
+        status, stdout, stderr = self._host.execute('getent', 'passwd', uid)
+        if not status:
+            raise UserError(stderr)
+        return dict(zip(
+            ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell'),
+            stdout[0].split('')))
+
+
+    def add(self, user, **kwargs):
+        self._host.asroot('useradd')
+        return self._host.execute('useradd', user, **kwargs)
+
+
+    def delete(self, user, **kwargs):
+        self._host.asroot('userdel')
+        return self._host.execute('userdel', user, **kwargs)
+
+
+    def update(self, user, **kwargs):
+        self._host.asroot('usermod')
+        return self._host.execute('usermod', user, **kwargs)
