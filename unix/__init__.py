@@ -302,7 +302,7 @@ class Local(Host):
                 return [False, '', err]
         else:
             try:
-                obj = subprocess.Popen(' '.join(command),
+                obj = subprocess.Popen(' '.join(map(str, command)),
                     shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 stdout, stderr = obj.communicate()
                 self.return_code = obj.returncode
