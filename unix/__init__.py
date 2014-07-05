@@ -16,7 +16,6 @@ from contextlib import contextmanager
 #
 import logging
 logger = logging.getLogger('unix')
-logger.setLevel('INFO')
 
 
 #
@@ -159,14 +158,14 @@ class Host(object):
     def type(self):
         """Property that return the type of the operating system by executing
         ``uname -s`` command."""
-        return self.execute('uname -s')[1][0].lower()
+        return self.execute('uname', s=True)[1][0].lower()
 
 
     @property
     def arch(self):
         """Property that return the architecture of the operating system by
         executing ``uname -m`` command."""
-        return self.execute('uname -m')[1][0]
+        return self.execute('uname', m=True)[1][0]
 
 
     @property
