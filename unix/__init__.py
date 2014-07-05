@@ -310,8 +310,8 @@ class Local(Host):
                 stdout, stderr = obj.communicate()
                 self.return_code = obj.returncode
                 return [True if self.return_code == 0 else False,
-                        stdout.split('\n')[:-1],
-                        stderr.split('\n')[:-1]]
+                        stdout.decode().split('\n')[:-1],
+                        stderr.decode().split('\n')[:-1]]
             except OSError as err:
                 return [False, '', err]
 
@@ -379,11 +379,17 @@ class Remote(Host):
         use_ipv6 = kwargs.get('ipv6', False)
 
         if IPV4.match(host):
-            self.ipv4, self.fqdn, self.ipv6 = host, self.__fqdn(), self.__ipv6()
+            self.ipv4 = host
+            self.fqdn = self.__fqdn()
+            self.ipv6 = self.__ipv6()
         elif IPV6.match(host):
-            self.ipv4, self.fqdn, self.ipv6 = self.__ipv4(), self.__fqdn(), host
+            self.ipv6 = host
+            self.ipv4 = self.__ipv4()
+            self.fqdn = self.__fqdn()
         else:
-            self.ipv4, self.fqdn, self.ipv6 = self.__ipv4(), host, self.__ipv6()
+            self.fqdn = host
+            self.ipv4 = self.__ipv4()
+            self.ipv6 = self.__ipv6()
             self.fqdn = self.__fqdn()
 
         if not self.ipv4 and not self.ipv6:
@@ -468,8 +474,14 @@ class Remote(Host):
             chan.exec_command(' '.join(command))
             self.return_code = chan.recv_exit_status()
             return [True if self.return_code == 0 else False,
-                chan.makefile('rb', -1).read().split('\n')[:-1],
-                chan.makefile_stderr('rb', -1).read().split('\n')[:-1]]
+                    (chan.makefile('rb', -1)
+                         .read()
+                         .decode()
+                         .split('\n')[:-1]),
+                    (chan.makefile_stderr('rb', -1)
+                         .read()
+                         .decode()
+                         .split('\n')[:-1])]
 
         if forward:
             forward.close()
