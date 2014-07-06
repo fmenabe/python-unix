@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import unicode_literals
+from six.moves import range
+
 class ShellError(Exception):
     pass
 
@@ -18,12 +21,12 @@ def table_line(columns_sizes, columns_values):
         raise ShellError("print error: len of columns is different of len of "
                          "columns values")
 
-    lines = [[' ' * columns_sizes[__] for __ in xrange(len(columns_sizes))]]
+    lines = [[' ' * columns_sizes[__] for __ in range(len(columns_sizes))]]
     # Parse columns
     for column_index, column_value in enumerate(columns_values):
         column_size = columns_sizes[column_index]
 
-        if not isinstance(column_value, (str, unicode)):
+        if not isinstance(column_value, (str)):
             column_value = str(column_value)
         column_value = column_value.encode('utf-8')
 
@@ -45,7 +48,7 @@ def table_line(columns_sizes, columns_values):
             for line in value_lines:
                 if line_number > len(lines) - 1:
                     lines.append([' ' * columns_sizes[__]
-                                  for __ in xrange(len(columns_sizes))])
+                                  for __ in range(len(columns_sizes))])
                 lines[line_number][column_index] = line
                 line_number += 1
 
