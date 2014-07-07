@@ -28,7 +28,6 @@ def table_line(columns_sizes, columns_values):
 
         if not isinstance(column_value, (str)):
             column_value = str(column_value)
-        column_value = column_value.encode('utf-8')
 
         line_number = 0
         # Split column on new line.
