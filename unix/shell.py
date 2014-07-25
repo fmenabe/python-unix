@@ -6,6 +6,16 @@ from six.moves import range
 class ShellError(Exception):
     pass
 
+
+def colorize(colors, index, value):
+    try:
+        return ('\033[%sm%s\033[00m' % (colors[index], value)
+                if colors[index]
+                else value)
+    except IndexError:
+        return value
+
+
 def table_border(columns):
     line = '+'
     for idx in range(0, len(columns)):
@@ -16,7 +26,7 @@ def table_border(columns):
     print(line)
 
 
-def table_line(columns_sizes, columns_values):
+def table_line(columns_sizes, columns_values, columns_colors=[]):
     if len(columns_sizes) != len(columns_values):
         raise ShellError("print error: len of columns is different of len of "
                          "columns values")
@@ -24,7 +34,7 @@ def table_line(columns_sizes, columns_values):
     lines = [[' ' * columns_sizes[__] for __ in range(len(columns_sizes))]]
     # Parse columns
     for column_index, column_value in enumerate(columns_values):
-        column_size = columns_sizes[column_index]
+        column_size = columns_sizes[column_index] - 2
 
         if not isinstance(column_value, (str)):
             column_value = str(column_value)
@@ -34,15 +44,20 @@ def table_line(columns_sizes, columns_values):
         values = column_value.split('\n')
         for value in values:
             # Split on column len.
-            value_lines = []
-            cur_value = ' '
-            for char in value:
-                if len(cur_value) == (column_size - 1):
-                    cur_value += ' '
-                    value_lines.append(cur_value)
-                    cur_value = '  '
-                cur_value += char
-            value_lines.append(cur_value + ' ' * (column_size - len(cur_value)))
+            line_value = ' %s ' % value[:column_size]
+            if len(line_value) - 1 <= column_size:
+                line_value += ' ' * (column_size - len(value))
+            value_lines = [colorize(columns_colors, column_index, line_value)]
+
+            value = value[column_size:]
+            while value:
+                line_value = '  %s ' % value
+                if len(line_value) - 2 <= column_size :
+                    line_value += ' ' * (column_size - (len(line_value) - 2))
+                value_lines.append(colorize(columns_colors,
+                                             column_index,
+                                             line_value))
+                value = value[(column_size - 1):]
 
             for line in value_lines:
                 if line_number > len(lines) - 1:
