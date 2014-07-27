@@ -310,8 +310,8 @@ class Local(Host):
                 stdout, stderr = obj.communicate()
                 self.return_code = obj.returncode
                 return [True if self.return_code == 0 else False,
-                        stdout.decode().split('\n')[:-1],
-                        stderr.decode().split('\n')[:-1]]
+                        stdout,
+                        stderr]
             except OSError as err:
                 return [False, '', err]
 
@@ -474,14 +474,8 @@ class Remote(Host):
             chan.exec_command(' '.join(command))
             self.return_code = chan.recv_exit_status()
             return [True if self.return_code == 0 else False,
-                    (chan.makefile('rb', -1)
-                         .read()
-                         .decode()
-                         .split('\n')[:-1]),
-                    (chan.makefile_stderr('rb', -1)
-                         .read()
-                         .decode()
-                         .split('\n')[:-1])]
+                    chan.makefile('rb', -1).read(),
+                    chan.makefile_stderr('rb', -1).read()]
 
         if forward:
             forward.close()
