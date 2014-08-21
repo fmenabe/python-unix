@@ -316,6 +316,10 @@ class Local(Host):
                 return [False, '', err]
 
 
+    def open(self, filepath, mode='r'):
+        return open(filepath, mode)
+
+
 #
 # Context Manager for connecting to a remote host.
 #
@@ -481,6 +485,10 @@ class Remote(Host):
             forward.close()
         chan.close()
 
+
+    def open(self, filepath, mode='r'):
+        sftp = paramiko.SFTPClient.from_transport(self._ssh.get_transport())
+        return sftp.open(filepath, mode)
 
 #
 # Class for managing filesystem paths.
