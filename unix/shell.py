@@ -51,7 +51,7 @@ def table_line(columns_sizes, columns_values, columns_colors=[]):
 
             value = value[column_size:]
             while value:
-                line_value = '  %s ' % value
+                line_value = '  %s ' % value[:(column_size - 1)]
                 if len(line_value) - 2 <= column_size :
                     line_value += ' ' * (column_size - (len(line_value) - 2))
                 value_lines.append(colorize(columns_colors,
