@@ -22,6 +22,11 @@ logger = logging.getLogger('unix')
 #
 # Constants
 #
+# Available controls with their defaults values.
+CONTROLS = {'options_place': 'before',
+            'locale': 'en_US.utf-8',
+            'decode': 'utf-8'}
+
 # Regular expression for matching IPv4 address.
 IPV4 = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
 
@@ -29,9 +34,6 @@ IPV4 = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
 IPV6 = re.compile('^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
                   '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
                   '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}$')
-
-# Locale for all commands in order to have all outputs in english.
-LOCALE = 'LC_ALL=en_US.utf-8'
 
 # Extra arguments for 'scp' command as integer argument name raise syntax error
 # when there are passed directly but not in kwargs.
@@ -92,7 +94,9 @@ class Host(object):
     """Class that implement commands that are commons to local or remote
     host."""
     def __init__(self):
-        self._options_behaviour = 'before'
+        self.return_code = -1
+        for control, value in iteritems(CONTROLS):
+            setattr(self, '_%s' % control, value)
 
 
     @property
@@ -120,60 +124,81 @@ class Host(object):
         return _Processes(weakref.ref(self)())
 
 
+    @property
+    def controls(self):
+        return {control: getattr(self, '_%s' % control) for control in CONTROLS}
+
+
+    def get_control(self, control):
+        if control not in CONTROLS:
+            raise UnixError("invalid control '%s'" % control)
+        return getattr(self, '_%s' % control)
+
+
+    def set_control(self, control, value):
+        setattr(self, '_%s' % control, value)
+
+
     @contextmanager
-    def set_options_behaviour(self, behaviour):
-        cur_behaviour = self._options_behaviour
+    def set_controls(self, **controls):
+        cur_controls = dict(self.controls)
+
         try:
-            self._options_behaviour = behaviour
+            for control, value in iteritems(controls):
+                self.set_control(control, value)
             yield None
         finally:
-            self._options_behaviour = cur_behaviour
+            for control, value in iteritems(cur_controls):
+                self.set_control(control, value)
 
 
     def _format_command(self, command, args, options):
+        command = ['LC_ALL=%s' % self._locale, command]
         interactive = options.pop('interactive', False)
-        if self._options_behaviour == 'after':
-            command.extend(args)
+        if self._options_place == 'after':
+            command.extend([str(arg) for arg in args])
 
         for option, value in iteritems(options):
             option = ('-%s' % option
                       if len(option) == 1
                       else '--%s' % option.replace('_', '-'))
             if type(value) is bool:
+                if not value:
+                    continue
                 command.append(option)
             elif type(value) in (list, tuple, set):
                 command.extend('%s %s' % (option, val) for val in value)
             else:
                 command.append('%s %s' % (option, value))
 
-        if self._options_behaviour == 'before':
+        if self._options_place == 'before':
             command.extend(args)
         logger.debug('[execute] %s' % ' '.join(map(str, command)))
-        return interactive
+        return command, interactive
 
 
     def execute(self):
         raise NotImplementedError("don't use 'Host' class directly, "
-            "use 'Local' or 'Remote' class instead.")
+                                  "use 'Local' or 'Remote' class instead.")
 
 
     @property
     def type(self):
         """Property that return the type of the operating system by executing
         ``uname -s`` command."""
-        return self.execute('uname', s=True)[1][0].lower()
+        return self.execute('uname', s=True)[1].splitlines()[0].lower()
 
 
     @property
     def arch(self):
         """Property that return the architecture of the operating system by
         executing ``uname -m`` command."""
-        return self.execute('uname', m=True)[1][0]
+        return self.execute('uname', m=True)[1].splitlines()[0]
 
 
     @property
     def hostname(self):
-        return self.execute('hostname')[1][0]
+        return self.execute('hostname')[1].splitlines()[0]
 
 
     def asroot(self, command):
@@ -215,7 +240,7 @@ class Host(object):
         if not status:
             raise OSError(stderr)
 
-        return stdout
+        return stdout.splitlines()
 
 
     def touch(self, *paths, **options):
@@ -258,7 +283,7 @@ class Host(object):
 
 
     def which(self, command, **options):
-        return self.execute('which', command, **options)[1][0]
+        return self.execute('which', command, **options)[1].splitlines()[0]
 
 
     def getent(self, database, key='', mapping=[]):
@@ -289,10 +314,8 @@ class Local(Host):
         executed interactively (printing output in real time and waiting for
         inputs) and stdout and stderr are empty. The return code of the last
         command is put in *return_code* attribut."""
-        command = [LOCALE, command]
-        interactive = self._format_command(command, args, options)
+        command, interactive = self._format_command(command, args, options)
 
-        self.return_code = -1
         if interactive:
             try:
                 self.return_code = subprocess.call(' '.join(command),
@@ -310,8 +333,8 @@ class Local(Host):
                 stdout, stderr = obj.communicate()
                 self.return_code = obj.returncode
                 return [True if self.return_code == 0 else False,
-                        stdout,
-                        stderr]
+                        stdout.decode(self._decode) if self._decode else stdout,
+                        stderr.decode(self._decode) if self._decode else stderr]
             except OSError as err:
                 return [False, '', err]
 
@@ -337,7 +360,7 @@ class connect(object):
 
     def __exit__(self, type, value, traceback):
         self._host.disconnect()
-        del(self._host)
+        del self._host
 
 
 #
@@ -347,6 +370,9 @@ class Remote(Host):
     def __init__(self):
         Host.__init__(self)
         self._connected = False
+        self.ipv4 = None
+        self.ipv6 = None
+        self.fqdn = None
 
 
     def __ipv4(self):
@@ -433,15 +459,13 @@ class Remote(Host):
             raise ConnectError('you must be connected to a host before '
                                'executing commands')
 
-        command = [LOCALE, command]
-        interactive = self._format_command(command, args, options)
+        command, interactive = self._format_command(command, args, options)
 
         chan = self._ssh.get_transport().open_session()
         forward = None
         if self.forward_agent:
             forward = paramiko.agent.AgentRequestHandler(chan)
 
-        self.return_code = -1
         if interactive:
             chan.settimeout(0.0)
             chan.exec_command(' '.join(command))
@@ -464,7 +488,7 @@ class Remote(Host):
                         if len(char) == 0 or char == '\n':
                             break
                     chan.send(stdin)
-                # If no waiting, the process loop as he can, reading the
+                # If no wait, the process loop as he can, reading the
                 # channel! Waiting 0.1 seconds avoids using a processor at
                 # 100% for nothing.
                 time.sleep(0.1)
@@ -477,9 +501,11 @@ class Remote(Host):
         else:
             chan.exec_command(' '.join(command))
             self.return_code = chan.recv_exit_status()
+            stdout = chan.makefile('rb', -1).read()
+            stderr = chan.makefile_stderr('rb', -1).read()
             return [True if self.return_code == 0 else False,
-                    chan.makefile('rb', -1).read(),
-                    chan.makefile_stderr('rb', -1).read()]
+                    stdout.decode(self._decode) if self._decode else stdout,
+                    stderr.decode(self._decode) if self._decode else stderr]
 
         if forward:
             forward.close()
@@ -520,15 +546,21 @@ class _Path(object):
 
     def type(self, path):
         """Use ``file`` command for retrieving the type of the **path**."""
-        status, stdout = self._host.execute('file', path)[:-1]
+        with self._host.set_controls(decode='utf-8'):
+            status, stdout = self._host.execute('file', path)[:-1]
         if not status:
             # For unexpected reasons, errors are in stdout!
             raise OSError(stdout)
-        return stdout[0].split(':')[-1].strip()
+        return stdout.split(':')[-1].strip()
 
 
     def size(self, filepath, **options):
-        return self._host.execute('du', filepath, **options)
+        with self._host.set_controls(decode='utf-8'):
+            options.update(s=True)
+            status, stdout, stderr = self._host.execute('du', filepath, **options)
+        if not status:
+            raise OSError(stderr)
+        return stdout.split('\t')[0]
 
 
 #
@@ -558,7 +590,7 @@ class _Remote(object):
         # Python don't like when argument name is an integer but passing them
         # with kwargs seems to work. So use extra arguments for interger options
         # of the scp command.
-        for mapping, opt in SCP_EXTRA_ARGS.items():
+        for mapping, opt in iteritems(SCP_EXTRA_ARGS):
             if kwargs.pop(mapping, False):
                 kwargs.setdefault(opt, True)
 
@@ -566,7 +598,7 @@ class _Remote(object):
         # connect timeout).
         cur_opts = [opt.split('=')[0] for opt in kwargs['o']]
         kwargs['o'].extend('%s=%s' % (opt, default)
-                           for opt, default in SCP_DEFAULT_OPTS.items()
+                           for opt, default in iteritems(SCP_DEFAULT_OPTS)
                            if opt not in cur_opts)
 
         # Format source and destination arguments.
