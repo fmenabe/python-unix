@@ -69,21 +69,7 @@ def ishost(host, value):
 #
 # Exceptions.
 #
-class ConnectError(Exception):
-    """Exception raised by a **Remote** object when it is not possible to
-    establish a connection."""
-    pass
-
-
-class MountError(Exception):
-    pass
-
-
-class InvalidUser(Exception):
-    pass
-
-
-class UserError(Exception):
+class UnixError(Exception):
     pass
 
 
@@ -201,26 +187,6 @@ class Host(object):
         return self.execute('hostname')[1].splitlines()[0]
 
 
-    def asroot(self, command):
-        if not self.username == 'root':
-            raise InvalidUser("you need to be root for executing command "
-                              "'%s'" % command)
-
-
-    def mount(self, *args, **options):
-        with self.set_options_behaviour('before'):
-            status, stderr = self.execute('mount', *args, **options)[::2]
-            if not status:
-                raise MountError(stderr)
-
-
-    def umount(self, *args, **options):
-        with self.set_options_behaviour('before'):
-            status, stderr = self.execute('umount', *args, **options)[::2]
-            if not status:
-                raise MountError(stderr)
-
-
     def listdir(self, path):
         """List files in a directory.
 
@@ -284,13 +250,6 @@ class Host(object):
 
     def which(self, command, **options):
         return self.execute('which', command, **options)[1].splitlines()[0]
-
-
-    def getent(self, database, key='', mapping=[]):
-        status, stdout, stderr = self._host.execute('getent', 'passwd')
-        if not status:
-            raise UserError(stderr)
-        return [dict(zip(PASSWD_FIELDS, user.split(':'))) for user in stdout]
 
 
 #
@@ -423,7 +382,7 @@ class Remote(Host):
             self.fqdn = self.__fqdn()
 
         if not self.ipv4 and not self.ipv6:
-            raise ConnectError("unable to get an IPv4 or an IPv6 addresse.")
+            raise UnixError("unable to get an IPv4 or an IPv6 addresse.")
 
         self.ip = self.ipv6 if self.ipv6 and use_ipv6 else self.ipv4
         self._ssh = paramiko.SSHClient()
@@ -437,7 +396,7 @@ class Remote(Host):
                                                            False)})
             self._ssh.connect(self.ip, **params)
         except Exception as err:
-            raise ConnectError(err)
+            raise UnixError(err)
         self._connected = True
         self.sftp = None
         self.localhost = Local()
@@ -455,9 +414,9 @@ class Remote(Host):
 
 
     def execute(self, command, *args, **options):
-        if not self._connected:
-            raise ConnectError('you must be connected to a host before '
-                               'executing commands')
+        if not hasattr(self, '_ssh') or not self._ssh._transport:
+            raise UnixError('you must be connected to a host before '
+                            'executing any commands')
 
         command, interactive = self._format_command(command, args, options)
 
