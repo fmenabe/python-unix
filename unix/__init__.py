@@ -367,6 +367,7 @@ class Remote(Host):
 
     def connect(self, host, **kwargs):
         self.forward_agent = kwargs.pop('forward_agent', True)
+        self.username = kwargs.pop('username', 'root')
 
         if IPV4.match(host):
             self.ipv4 = host
@@ -387,7 +388,7 @@ class Remote(Host):
         self.ip = (self.ipv6 if self.ipv6 and kwargs.pop('ipv6', False)
                              else self.ipv4)
 
-        params = {'username': kwargs.pop('username', 'root')}
+        params = {'username': self.username}
         for param, value in iteritems(kwargs):
             params[param] = value
         self._conn = paramiko.SSHClient()
@@ -617,57 +618,39 @@ class _Remote(object):
             return Local().remote.put(rmtpath,
                                       self._host.ip,
                                       localpath,
+                                      rmtuser=kwargs.pop('rmtuser',
+                                                         self._host.username),
                                       **kwargs)
 
         method = kwargs.pop('method', 'scp')
         rmtuser = kwargs.pop('rmtuser', 'root')
 
-        return {
-            'scp': lambda: self.scp(rmtpath,
-                                    localpath,
-                                    src_host=rmthost,
-                                    src_user=rmtuser,
-                                    **kwargs),
-            'rsync': lambda: self.rsync(rmtpath,
-                                        localpath,
-                                        src_host=rmthost,
-                                        src_user=rmtuser,
-                                        **kwargs),
-            'tar': lambda: self.tar(rmtpath,
-                                    localpath,
-                                    src_host=rmthost,
-                                    src_user=rmtuser,
-                                    **kwargs),
-        }.get(method, lambda: [False, [], ["unknown copy method '%s'" % method]])()
+        try:
+            args = (rmtpath, localpath)
+            kwargs.update(src_host=rmthost, src_user=rmtuser)
+            return getattr(self, method)(*args, **kwargs)
+        except AttributeError:
+            return [False, [], ["unknown copy method '%s'" % method]]
 
 
     def put(self, localpath, rmthost, rmtpath, **kwargs):
         if ishost(self._host, 'Remote') and rmthost == 'localhost':
-            return Local().remote.get(self.host.ip,
+            return Local().remote.get(self._host.ip,
                                       localpath,
                                       rmtpath,
+                                      rmtuser=kwargs.pop('rmtuser',
+                                                         self._host.username),
                                       **kwargs)
 
         method = kwargs.pop('method', 'scp')
         rmtuser = kwargs.pop('rmtuser', 'root')
 
-        return {
-            'scp': lambda: self.scp(localpath,
-                                    rmtpath,
-                                    dst_host=rmthost,
-                                    dst_user=rmtuser,
-                                    **kwargs),
-            'rsync': lambda: self.rsync(localpath,
-                                        rmtpath,
-                                        dst_host=rmthost,
-                                        dst_user=rmtuser,
-                                        **kwargs),
-            'tar': lambda: self.tar(localpath,
-                                    rmtpath,
-                                    dst_host=rmthost,
-                                    dst_user=rmtuser,
-                                    **kwargs),
-        }.get(method, lambda: [False, '', "unknown method '%s'" % method])()
+        try:
+            args = (localpath, rmtpath)
+            kwargs.update(dst_host=rmthost, dst_user=rmtuser)
+            return getattr(self, method)(*args, **kwargs)
+        except AttributeError:
+            return [False, [], ["unknown copy method '%s'" % method]]
 
 
 #
