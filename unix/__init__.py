@@ -28,9 +28,10 @@ CONTROLS = {'options_place': 'before',
             'decode': 'utf-8'}
 
 # Errors.
-HOST_CLASS = ("don't use 'Host' class directly, use 'Local' or "
-              "'Remote' class instead.")
-NOT_CONNECTED = 'you must be connected to a host before executing any commands'
+HOST_CLASS_ERR = ("don't use 'Host' class directly, use 'Local' or "
+                  "'Remote' class instead.")
+NOT_CONNECTED_ERR = 'you must be connected to a host before executing any commands'
+IP_ERR = 'unable to get an IPv4 or an IPv6 addresse.'
 
 # Regular expression for matching IPv4 address.
 IPV4 = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
@@ -169,7 +170,7 @@ class Host(object):
 
 
     def execute(self):
-        raise NotImplementedError(HOST_CLASS)
+        raise NotImplementedError(HOST_CLASS_ERR)
 
 
     @property
@@ -332,6 +333,7 @@ class connect(object):
 class Remote(Host):
     def __init__(self):
         Host.__init__(self)
+        self.forward_agent = True
         self.ipv4 = None
         self.ipv6 = None
         self.fqdn = None
@@ -363,17 +365,8 @@ class Remote(Host):
             return ''
 
 
-    def is_connected(self):
-        if not hasattr(self, '_ssh') or not self._ssh.get_transport():
-            raise UnixError(NOT_CONNECTED)
-
-
     def connect(self, host, **kwargs):
-        self.username = kwargs.get('username', 'root')
-        self.password = kwargs.get('password', '')
-        self.forward_agent = kwargs.get('forwardagent', True)
-        timeout = kwargs.get('timeout', 10)
-        use_ipv6 = kwargs.get('ipv6', False)
+        self.forward_agent = kwargs.pop('forward_agent', True)
 
         if IPV4.match(host):
             self.ipv4 = host
@@ -390,32 +383,35 @@ class Remote(Host):
             self.fqdn = self.__fqdn()
 
         if not self.ipv4 and not self.ipv6:
-            raise UnixError("unable to get an IPv4 or an IPv6 addresse.")
+            raise UnixError(IP_ERR)
+        self.ip = (self.ipv6 if self.ipv6 and kwargs.pop('ipv6', False)
+                             else self.ipv4)
 
-        self.ip = self.ipv6 if self.ipv6 and use_ipv6 else self.ipv4
-        self._ssh = paramiko.SSHClient()
+        params = {'username': kwargs.pop('username', 'root')}
+        for param, value in iteritems(kwargs):
+            params[param] = value
+        self._conn = paramiko.SSHClient()
         try:
-            self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            params = {'username': self.username, 'timeout': timeout}
-            if self.password:
-                params.update({'password': self.password,
-                               'allow_agent': kwargs.get('allow_agent', False),
-                               'look_for_keys': kwargs.get('look_for_keys',
-                                                           False)})
-            self._ssh.connect(self.ip, **params)
+            self._conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self._conn.connect(self.ip, **params)
         except Exception as err:
             raise UnixError(err)
 
         # Optimizations for file transfert
         # (see https://github.com/paramiko/paramiko/issues/175)
         # From 6Mb/s to 12Mb/s => still very slow (scp = 40Mb/s)!
-        self._ssh.get_transport().window_size = 2147483647
-        self._ssh.get_transport().packetizer.REKEY_BYTES = pow(2, 40)
-        self._ssh.get_transport().packetizer.REKEY_PACKETS = pow(2, 40)
+        self._conn.get_transport().window_size = 2147483647
+        self._conn.get_transport().packetizer.REKEY_BYTES = pow(2, 40)
+        self._conn.get_transport().packetizer.REKEY_PACKETS = pow(2, 40)
 
 
     def disconnect(self):
-        self._ssh.close()
+        self._conn.close()
+
+
+    def is_connected(self):
+        if not hasattr(self, '_conn') or not self._conn.get_transport():
+            raise UnixError(NOT_CONNECTED_ERR)
 
 
     def execute(self, command, *args, **options):
@@ -423,10 +419,10 @@ class Remote(Host):
 
         command, interactive = self._format_command(command, args, options)
 
-        chan = self._ssh.get_transport().open_session()
-        forward = None
-        if self.forward_agent:
-            forward = paramiko.agent.AgentRequestHandler(chan)
+        chan = self._conn.get_transport().open_session()
+        forward = (paramiko.agent.AgentRequestHandler(chan)
+                   if self.forward_agent
+                   else None)
 
         if interactive:
             chan.settimeout(0.0)
@@ -476,7 +472,7 @@ class Remote(Host):
 
     def open(self, filepath, mode='r'):
         self.is_connected()
-        sftp = paramiko.SFTPClient.from_transport(self._ssh.get_transport())
+        sftp = paramiko.SFTPClient.from_transport(self._conn.get_transport())
         return sftp.open(filepath, mode)
 
 
