@@ -27,6 +27,11 @@ CONTROLS = {'options_place': 'before',
             'locale': 'en_US.utf-8',
             'decode': 'utf-8'}
 
+# Errors.
+HOST_CLASS = ("don't use 'Host' class directly, use 'Local' or "
+              "'Remote' class instead.")
+NOT_CONNECTED = 'you must be connected to a host before executing any commands'
+
 # Regular expression for matching IPv4 address.
 IPV4 = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
 
@@ -164,8 +169,7 @@ class Host(object):
 
 
     def execute(self):
-        raise NotImplementedError("don't use 'Host' class directly, "
-                                  "use 'Local' or 'Remote' class instead.")
+        raise NotImplementedError(HOST_CLASS)
 
 
     @property
@@ -328,7 +332,6 @@ class connect(object):
 class Remote(Host):
     def __init__(self):
         Host.__init__(self)
-        self._connected = False
         self.ipv4 = None
         self.ipv6 = None
         self.fqdn = None
@@ -358,6 +361,11 @@ class Remote(Host):
                 return ''
         except socket.herror:
             return ''
+
+
+    def is_connected(self):
+        if not hasattr(self, '_ssh') or not self._ssh.get_transport():
+            raise UnixError(NOT_CONNECTED)
 
 
     def connect(self, host, **kwargs):
@@ -397,9 +405,6 @@ class Remote(Host):
             self._ssh.connect(self.ip, **params)
         except Exception as err:
             raise UnixError(err)
-        self._connected = True
-        self.sftp = None
-        self.localhost = Local()
 
         # Optimizations for file transfert
         # (see https://github.com/paramiko/paramiko/issues/175)
@@ -414,9 +419,7 @@ class Remote(Host):
 
 
     def execute(self, command, *args, **options):
-        if not hasattr(self, '_ssh') or not self._ssh._transport:
-            raise UnixError('you must be connected to a host before '
-                            'executing any commands')
+        self.is_connected()
 
         command, interactive = self._format_command(command, args, options)
 
@@ -472,8 +475,11 @@ class Remote(Host):
 
 
     def open(self, filepath, mode='r'):
+        self.is_connected()
         sftp = paramiko.SFTPClient.from_transport(self._ssh.get_transport())
         return sftp.open(filepath, mode)
+
+
 
 #
 # Class for managing filesystem paths.
