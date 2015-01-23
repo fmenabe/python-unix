@@ -435,7 +435,7 @@ class Remote(Host):
                         stdout = chan.recv(1024)
                         if len(stdout) == 0:
                             break
-                        sys.stdout.write(stdout)
+                        sys.stdout.write(stdout.decode())
                         sys.stdout.flush()
                     except socket.timeout:
                         pass
