@@ -1,12 +1,67 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+import sys
 from six.moves import range
 
 class ShellError(Exception):
     pass
 
 
+class QuitOnError(Exception):
+    pass
+
+
+#
+# Messages.
+#
+def flush(msg):
+    """Flush a message in stdout."""
+    sys.stdout.write(msg)
+    sys.stdout.flush()
+
+
+def msg(msg, start=76):
+    """Return a shell string beggining at the **start** column."""
+    return '\033[%sG%s' % (start, msg)
+
+
+def ok(start=76):
+    """Print the string 'OK' in green at the **start** column."""
+    print('\033[%sG\033[32mOK\033[00m' % start)
+
+
+def warn(msg, start=76):
+    """Print the string 'WARN' in orange at the **start** column and the string
+    **msg** in the next lines."""
+    print('\033[%sG\033[33mWARN\n%s\033[00m' % (start, msg))
+
+
+def fail(msg, quit=False, start=76):
+    """Print the string 'FAIL' in red at the **start** column and the string
+    **msg** in the next lines. If quit is *True*, the exception **QuitOnError**
+    is raised.
+    """
+    print('\033[%sG\033[31mFAIL\n%s\033[00m' % (start, msg))
+    if quit:
+        raise QuitOnError(msg)
+
+
+def status(result, quit=False, start=76):
+    """Manage the result (status, stdout, stderr) of the execution of a command.
+    """
+    status, stdout, stderr = result
+    if not status:
+        fail(stderr, quit, start)
+    elif stderr:
+        warn(stderr, start)
+    else:
+        ok(start)
+
+
+#
+# Tables.
+#
 def colorize(colors, index, value):
     try:
         return ('\033[%sm%s\033[00m' % (colors[index], value)
