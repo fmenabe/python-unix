@@ -307,6 +307,24 @@ class Local(Host):
         return open(filepath, mode)
 
 
+    def tail(self, filepath, delta=1):
+        prev_size = os.stat(filepath).st_size
+        while 1:
+            cur_size = os.stat(filepath).st_size
+            # file has been rotate.
+            if cur_size < prev_size:
+                with self.open(filepath) as fhandler:
+                    for line in fhandler.read().splitlines():
+                        yield line
+            else:
+                with self.open(filepath) as fhandler:
+                    fhandler.seek(prev_size, 0)
+                    for line in fhandler.read().splitlines():
+                        yield line
+            prev_size = cur_size
+            time.sleep(delta)
+
+
 #
 # Context Manager for connecting to a remote host.
 #
@@ -476,6 +494,25 @@ class Remote(Host):
         sftp = paramiko.SFTPClient.from_transport(self._conn.get_transport())
         return sftp.open(filepath, mode)
 
+
+    def tail(self, filepath, delta=1):
+        sftp = paramiko.SFTPClient.from_transport(self._conn.get_transport())
+
+        prev_size = sftp.stat(filepath).st_size
+        while 1:
+            cur_size = sftp.stat(filepath).st_size
+            # file has been rotate.
+            if cur_size < prev_size:
+                with self.open(filepath) as fhandler:
+                    for line in fhandler.read().splitlines():
+                        yield line.decode()
+            else:
+                with self.open(filepath) as fhandler:
+                    fhandler.seek(prev_size, 0)
+                    for line in fhandler.read().splitlines():
+                        yield line.decode()
+            prev_size = cur_size
+            time.sleep(delta)
 
 
 #
