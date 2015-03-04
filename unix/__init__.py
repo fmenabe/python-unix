@@ -589,11 +589,11 @@ class _Path(object):
 
     def size(self, filepath, **options):
         with self._host.set_controls(decode='utf-8'):
-            options.update(s=True)
+            options.update(s=True, h=False, k=True)
             status, stdout, stderr = self._host.execute('du', filepath, **options)
         if not status:
             raise OSError(stderr)
-        return stdout.split('\t')[0]
+        return int(stdout.split('\t')[0])
 
 
 #
