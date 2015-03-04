@@ -30,7 +30,7 @@ CONTROLS = {'options_place': 'before',
 # Errors.
 HOST_CLASS_ERR = ("don't use 'Host' class directly, use 'Local' or "
                   "'Remote' class instead.")
-NOT_CONNECTED_ERR = 'you must be connected to a host before executing any commands'
+NOT_CONNECTED_ERR = 'you are not connected'
 IP_ERR = 'unable to get an IPv4 or an IPv6 addresse.'
 
 # Regular expression for matching IPv4 address.
