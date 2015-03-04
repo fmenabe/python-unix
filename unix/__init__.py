@@ -264,6 +264,14 @@ class Host(object):
             raise UnixError("which: unable to find command '%s'" % command)
 
 
+    def mount(self, device, mount_point, **options):
+        return self.execute('mount', device, mount_point, **options)
+
+
+    def umount(self, mount_point, **options):
+        return self.execute('umount', mount_point, **options)
+
+
 #
 # Class for managing localhost (subprocess).
 #
