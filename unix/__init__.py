@@ -473,7 +473,7 @@ class Remote(Host):
             self.return_code = chan.recv_exit_status()
             stderr = chan.makefile_stderr('rb', -1).read()
             if stderr:
-                print(stderr)
+                print(stderr.decode())
             return [True if self.return_code == 0 else False, '', '']
         else:
             chan.exec_command(' '.join(map(str, command)))
