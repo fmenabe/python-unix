@@ -63,13 +63,17 @@ GROUP_FIELDS = ('name', 'password', 'gid', 'users')
 # Utils functions.
 #
 def instances(host):
-    return [elt.__name__ for elt in host.__class__.mro()]
+    return list(reversed([elt.__name__.replace('Host', '')
+                          for elt in host.__class__.mro()[:-2]]))
 
 
 def ishost(host, value):
     return True if value in instances(host) else False
 
 
+def isvalid(host):
+    if instances(host)[0] not in ('Local', 'Remote'):
+        raise ValueError("this is not a 'Local' or a 'Remote' host")
 
 
 #
