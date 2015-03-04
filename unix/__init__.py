@@ -270,6 +270,10 @@ class Local(Host):
         return self.users.username(os.getuid())
 
 
+    def is_connected(self):
+        pass
+
+
     def execute(self, command, *args, **options):
         """Function that execute a command using english utf8 locale. The output
         is a list of three elements: a boolean representing the status of the
@@ -355,6 +359,7 @@ class Remote(Host):
         self.ipv4 = None
         self.ipv6 = None
         self.fqdn = None
+        self._conn = None
 
 
     def __ipv4(self):
@@ -429,7 +434,7 @@ class Remote(Host):
 
 
     def is_connected(self):
-        if not hasattr(self, '_conn') or not self._conn.get_transport():
+        if self._conn is None or not self._conn.get_transport():
             raise UnixError(NOT_CONNECTED_ERR)
 
 
