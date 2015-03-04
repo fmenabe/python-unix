@@ -258,7 +258,10 @@ class Host(object):
 
 
     def which(self, command, **options):
-        return self.execute('which', command, **options)[1].splitlines()[0]
+        try:
+            return self.execute('which', command, **options)[1].splitlines()[0]
+        except IndexError:
+            raise UnixError("which: unable to find command '%s'" % command)
 
 
 #
