@@ -269,6 +269,15 @@ class Local(Host):
     def __init__(self):
         Host.__init__(self)
 
+
+    @staticmethod
+    def clone(host):
+        new_host = Local()
+        new_host.__dict__.update(return_code=host.return_code)
+        new_host.__dict__.update(host.controls)
+        return new_host
+
+
     @property
     def username(self):
         return self.users.username(os.getuid())
@@ -363,7 +372,20 @@ class Remote(Host):
         self.ipv4 = None
         self.ipv6 = None
         self.fqdn = None
+        self.username = None
         self._conn = None
+
+
+    @staticmethod
+    def clone(host):
+        new_host = Remote()
+        new_host.__dict__.update(return_code=host.return_code)
+        new_host.__dict__.update(host.controls)
+        attrs = ('ipv4', 'ipv6', 'fqdn', 'username')
+        new_host.__dict__.update({attr: getattr(host, attr) for attr in attrs})
+        if hasattr(host, '_conn'):
+            new_host.__dict__.update(_conn=host._conn)
+        return new_host
 
 
     def __ipv4(self):
