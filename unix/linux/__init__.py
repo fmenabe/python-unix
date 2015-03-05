@@ -4,6 +4,10 @@ import os
 import re
 import unix
 
+_FILESYSTEMS = (('proc', {'t': 'proc'}),
+                ('sys', {'t': 'sysfs'}),
+                ('/dev', {'o': 'bind'}))
+
 _RELEASE_FILENAME_RE = re.compile(r'(\w+)[-_](release|version)')
 _LSB_RELEASE_VERSION_RE = re.compile(r'(.+)'
                                      ' release '
@@ -26,6 +30,10 @@ _SUPPORTED_DISTS = ('SuSE', 'debian', 'fedora', 'redhat', 'centos', 'mandrake',
 #
 class LinuxError(Exception):
     pass
+
+class ChrootError(Exception):
+    pass
+
 
 #
 # Utils functions.
@@ -138,7 +146,7 @@ def _parse_release_file(firstline):
 #
 # Base class for managing linux hosts.
 #
-def Linux(host):
+def Linux(host, root=''):
     unix.isvalid(host)
     host.is_connected()
 
@@ -146,19 +154,83 @@ def Linux(host):
     if len(instances) > 1:
         host = getattr(unix, instances[0]).clone(host)
 
+    if root and host.username != 'root':
+        raise LinuxError('you need to be root for chroot')
+
     host_type = host.type
     if host_type != 'linux':
         raise LinuxError('this is not a Linux host (%s)' % host_type)
 
 
     class LinuxHost(host.__class__):
-        def __init__(self):
+        def __init__(self, root=''):
             host.__class__.__init__(self)
             self.__dict__.update(host.__dict__)
+            self.root = root
+
+
+        def execute(self, cmd, *args, **kwargs):
+            if self.root:
+                cmd = 'chroot %s %s' % (self.root, cmd)
+            return host.execute(cmd, *args, **kwargs)
+
+
+        def open(self, filepath, mode='r'):
+            if self.root:
+                filepath = filepath[1:] if filepath.startswith('/') else filepath
+                filepath = os.path.join(self.root, filepath)
+            return host.open(filepath, mode)
 
 
         @property
         def distrib(self):
             return distribution(self)
 
+
+        @property
+        def chrooted(self):
+            return True if self.root else False
+
+
+    def chroot(self):
+        for (fs, opts) in _FILESYSTEMS:
+            status, _, stderr = host.mount(fs, os.path.join(root, fs), **opts)
+            if not status:
+                raise ChrootError("unable to mount '%s': %s" % (fs, stderr))
+
+
+    def unchroot(self):
+        for fs in _FILESYSTEMS:
+            status, _, stderr = host.umount(os.path.join(root, fs[0]))
+            if not status:
+                raise ChrootError("unable to umount '%s': %s" % (fs, stderr))
+
+    if root:
+        setattr(LinuxHost, 'chroot', chroot)
+        setattr(LinuxHost, 'unchroot', unchroot)
+
     return LinuxHost(root)
+
+
+#
+# Context Manager for chroot.
+#
+class chroot(object):
+    def __init__(self, parent, root, distrib=None, force=False):
+        self.host = Linux(parent, root)
+
+        try:
+            if distrib is None:
+                self.host = getattr(unix, self.host.distrib[0])(self.host, root)
+            else:
+                self.host = getattr(unix, distrib)(self.host, root, force)
+        except AttributeError:
+            pass
+
+    def __enter__(self):
+        self.host.chroot()
+        return self.host
+
+    def __exit__(self, type, value, traceback):
+        self.host.unchroot()
+        del self.host
