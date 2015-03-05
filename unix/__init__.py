@@ -855,3 +855,9 @@ class _Processes(object):
 
     def kill(self, pid, **options):
         return self._host.execute('kill', pid, **options)
+
+
+#
+# Add subpackages at this level.
+#
+from unix.linux import Linux
