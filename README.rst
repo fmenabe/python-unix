@@ -16,4 +16,4 @@ Releases notes
 --------------
 0.1
 ~~~
-    * First import
+    * Initial version.
