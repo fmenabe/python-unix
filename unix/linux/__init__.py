@@ -233,6 +233,29 @@ def Linux(host, root=''):
 
 
 #
+# Context Manager for connecting to a remote host.
+#
+class connect(object):
+    def __init__(self, host, **kwargs):
+        self.hostname = host
+        self.options = kwargs
+
+    def __enter__(self):
+        self._host = unix.Remote()
+        self._host.connect(self.hostname, **self.options)
+        self._host = Linux(self._host)
+        try:
+            self._host = getattr(unix, self._host.distrib[0])(self._host)
+        except AttributeError:
+            pass
+        return self._host
+
+    def __exit__(self, type, value, traceback):
+        self._host.disconnect()
+        del self._host
+
+
+#
 # Context Manager for chroot.
 #
 class chroot(object):
