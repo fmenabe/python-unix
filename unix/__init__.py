@@ -860,4 +860,5 @@ class _Processes(object):
 #
 # Add subpackages at this level.
 #
-from unix.linux import Linux
+from unix.linux import Linux, chroot
+from unix.linux.distrib import *
