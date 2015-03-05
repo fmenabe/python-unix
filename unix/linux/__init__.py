@@ -286,3 +286,9 @@ class _Modules(object):
 
     def options(self, module):
         pass
+
+
+#
+# Load distrib packages at this level
+#
+from .distrib import *
