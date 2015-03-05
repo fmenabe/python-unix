@@ -1,201 +1,124 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Shell display library."""
-
+from __future__ import unicode_literals
 import sys
-import time
-import threading
+from six.moves import range
 
-class QuitOnError(Exception):
-    """Exception raised in the formatting methods indicating to interrupt
-    current execution."""
+class ShellError(Exception):
     pass
 
 
-################################################################################
-########                       Messages functions                       ########
-################################################################################
+class QuitOnError(Exception):
+    pass
+
+
+#
+# Messages.
+#
 def flush(msg):
     """Flush a message in stdout."""
     sys.stdout.write(msg)
     sys.stdout.flush()
 
 
-def msg(msg, range=76):
-    """Return a bash string begining at a given column."""
-    return "\033[%sG%s" % (range, msg)
+def msg(msg, start=76):
+    """Return a shell string beggining at the **start** column."""
+    return '\033[%sG%s' % (start, msg)
 
 
-def ok(range=76):
-    """Return 'OK' string in green at a given column."""
-    print "\033[%sG\033[32mOK\033[00m" % range
+def ok(start=76):
+    """Print the string 'OK' in green at the **start** column."""
+    print('\033[%sG\033[32mOK\033[00m' % start)
 
 
-def warn(msg, range=76):
-    """Return 'WARN' string at a given column and a message in the next line,
-    both in orange."""
-    print "\033[%sG\033[33mWARN\n%s\033[00m" % (range, msg)
+def warn(msg, start=76):
+    """Print the string 'WARN' in orange at the **start** column and the string
+    **msg** in the next lines."""
+    print('\033[%sG\033[33mWARN\n%s\033[00m' % (start, msg))
 
 
-def fail(msg, quit=False, range=76):
-    """Return 'FAIL' string in green at given column and a message next line.
+def fail(msg, quit=False, start=76):
+    """Print the string 'FAIL' in red at the **start** column and the string
+    **msg** in the next lines. If quit is *True*, the exception **QuitOnError**
+    is raised.
     """
-    print "\033[%sG\033[31mFAIL\n%s\033[00m" % (range, msg)
+    print('\033[%sG\033[31mFAIL\n%s\033[00m' % (start, msg))
     if quit:
         raise QuitOnError(msg)
 
 
-def status(cmd_output, quit=False, range=76):
-    """In function of output of a command (status, stdout, stderr), print the
-    good output."""
-    status, stdout, stderr = cmd_output
-    if not status:
-        fail(stderr, quit, range)
-    elif stderr:
-        warn(stderr, range)
-    else:
-        ok()
-
-
-def fstr(float_number):
-    number, precision = str(float_number).split('.')
-    return '%s.%s' % (number, precision[:2])
-
-
-
-################################################################################
-########                          Print table                           ########
-################################################################################
-def print_tab_line(columns, format):
-    if format == 'text':
-        line = '+'
-        for i in xrange(0, len(columns)):
-            size = columns[i]
-            for i in xrange(0, size):
-                line += '-'
-            line += '+'
-        print line
-
-
-
-def print_line(columns, values, format):
-    if format == 'text':
-        line = '|'
-        for i in xrange(0, len(columns)):
-            size = columns[i]
-            line += ' %s' % values[i]
-            remain_size = size - len(str(values[i])) - 1
-            for i in xrange(0, remain_size):
-                line += ' '
-            line += '|'
-        print line
-    elif format == 'csv':
-        print ','.join(values)
-    elif format == 'wiki':
-        print '|'.joint(values)
-
-
-class Copy(threading.Thread):
-    def __init__(self, host, src_path, dst_path, method='scp'):
-        threading.Thread.__init__(self)
-        self.host = host
-        self.src_path = src_path
-        self.dst_path = dst_path
-        self.method = method
-        self.src_size = self.size(src_path)
-
-
-    def run(self):
-        self.status = self.host.get(
-            self.src_path,
-            self.dst_path,
-            self.method,
-        )
-
-
-    def status(self):
-        while self.isAlive():
-            try:
-                dest_size = float(
-                    self.host.execute('du -s %s' % self.dst_path)[1].split()[0]
-                )
-            except IndexError:
-                dst_size = 0
-            completed = dst_size * 100 / self.src_size
-            flush(msg('%.2f%%'))
-            time.sleep(1)
-        flush(msg('       '))
-        return self.status
-
-
-class LocalCopy(threading.Thread):
-    def __init__(self, host, src_path, dst_path):
-        threading.Thread.__init__(self)
-        self.src_path = src_path
-        self.dest_path = dest_path
-        self.src_size = self.src_host.size(self.src_path)
-        if self.host.exists(self.dst_path):
-            self.host.rm(self.dst_path)
-
-
-    def run(self):
-        self.status = self.host.cp(
-            self.src_path,
-            self.dst_path,
-        )
-
-
-    def status(self):
-        while self.isAlive():
-            try:
-                dst_size = self.dst_host.size(self.dst_path)
-            except OSError:
-                dest_size = 0
-            completed = dest_size * 100 / self.src_size
-            flush(msg('%.2f%%'))
-            time.sleep(1)
-        flush(msg('       '))
-        return self.status
-
-
-class RemoteCopy(threading.Thread):
-    """Thread for monitoring status of a copy a file to a remote host.
-
-        >>> copy_thread = shell.RemoteCopy(srchost, srcpath, dsthost, dstpath)
-        >>> copy_thread.start()
-        >>> shell.status(copy_thread.status())
+def status(result, quit=False, start=76):
+    """Manage the result (status, stdout, stderr) of the execution of a command.
     """
-    def __init__(self, src_host, src_path, dst_host, dst_path):
-        threading.Thread.__init__(self)
-        self.src_host = src_host
-        self.src_path = src_path
-        self.dst_host = dst_host
-        self.dst_path = dst_path
-        self.src_size = self.src_host.size(self.src_path)
-        if self.dst_host.exists(self.dst_path):
-            self.dst_host.rm(self.dst_path)
+    status, stdout, stderr = result
+    if not status:
+        fail(stderr, quit, start)
+    elif stderr:
+        warn(stderr, start)
+    else:
+        ok(start)
 
 
-    def run(self):
-        self.status = self.src_host.rmt_copy(
-            self.src_path,
-            self.dst_host.hostname,
-            self.dst_path,
-            method='scp'
-        )
+#
+# Tables.
+#
+def colorize(colors, index, value):
+    try:
+        return ('\033[%sm%s\033[00m' % (colors[index], value)
+                if colors[index]
+                else value)
+    except IndexError:
+        return value
 
 
-    def status(self):
-        while self.isAlive():
-            try:
-                dst_size = self.dst_host.size(self.dst_path)
-            except OSError:
-                dst_size = 0
-            completed = float(dst_size) * 100 / float(self.src_size)
-            flush(msg('%0.2f%%' % completed))
-            time.sleep(1)
-        flush(msg('       '))
-        return self.status
+def table_border(columns):
+    line = '+'
+    for idx in range(0, len(columns)):
+        size = columns[idx]
+        for _ in range(0, size):
+            line += '-'
+        line += '+'
+    print(line)
 
 
+def table_line(columns_sizes, columns_values, columns_colors=[]):
+    if len(columns_sizes) != len(columns_values):
+        raise ShellError("print error: len of columns is different of len of "
+                         "columns values")
+
+    lines = [[' ' * columns_sizes[__] for __ in range(len(columns_sizes))]]
+    # Parse columns
+    for column_index, column_value in enumerate(columns_values):
+        column_size = columns_sizes[column_index] - 2
+
+        if not isinstance(column_value, (str)):
+            column_value = str(column_value)
+
+        line_number = 0
+        # Split column on new line.
+        values = column_value.split('\n')
+        for value in values:
+            # Split on column len.
+            line_value = ' %s ' % value[:column_size]
+            if len(line_value) - 1 <= column_size:
+                line_value += ' ' * (column_size - len(value))
+            value_lines = [colorize(columns_colors, column_index, line_value)]
+
+            value = value[column_size:]
+            while value:
+                line_value = '  %s ' % value[:(column_size - 1)]
+                if len(line_value) - 2 <= column_size :
+                    line_value += ' ' * (column_size - (len(line_value) - 2))
+                value_lines.append(colorize(columns_colors,
+                                             column_index,
+                                             line_value))
+                value = value[(column_size - 1):]
+
+            for line in value_lines:
+                if line_number > len(lines) - 1:
+                    lines.append([' ' * columns_sizes[__]
+                                  for __ in range(len(columns_sizes))])
+                lines[line_number][column_index] = line
+                line_number += 1
+
+    print('\n'.join('|%s|' % '|'.join(line) for line in lines))
