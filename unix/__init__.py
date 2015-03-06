@@ -23,40 +23,39 @@ logger = logging.getLogger('unix')
 # Constants
 #
 # Available controls with their defaults values.
-CONTROLS = {'options_place': 'before',
-            'locale': 'en_US.utf-8',
-            'decode': 'utf-8'}
+_CONTROLS = {'options_place': 'before',
+             'locale': 'en_US.utf-8',
+             'decode': 'utf-8'}
 
 # Errors.
-HOST_CLASS_ERR = ("don't use 'Host' class directly, use 'Local' or "
-                  "'Remote' class instead.")
-NOT_CONNECTED_ERR = 'you are not connected'
-IP_ERR = 'unable to get an IPv4 or an IPv6 addresse.'
+_HOST_CLASS_ERR = ("don't use 'Host' class directly, use 'Local' or "
+                   "'Remote' class instead.")
+_NOT_CONNECTED_ERR = 'you are not connected'
+_IP_ERR = 'unable to get an IPv4 or an IPv6 addresse.'
 
 # Regular expression for matching IPv4 address.
-IPV4 = re.compile('^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
+_IPV4 = re.compile(r'^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
 
 # Regular expression for matching IPv6 address.
-IPV6 = re.compile('^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
-                  '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
-                  '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}$')
+_IPV6 = re.compile(r'^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
+                    '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
+                    '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}$')
 
 # Extra arguments for 'scp' command as integer argument name raise syntax error
 # when there are passed directly but not in kwargs.
-SCP_EXTRA_ARGS = {'force_protocol1': '1',
+_SCP_EXTRA_ARGS = {'force_protocol1': '1',
                   'force_protocol2': '2',
                   'force_localhost': '3',
                   'force_ipv4': '4',
                   'force_ipv6': '6'}
 
 # Set some default value for SSH options of 'scp' command.
-SCP_DEFAULT_OPTS = {'StrictHostKeyChecking': 'no',
-                    'ConnectTimeout': '2'}
+_SCP_DEFAULT_OPTS = {'StrictHostKeyChecking': 'no', 'ConnectTimeout': '2'}
 
 # /etc/passwd fields.
-PASSWD_FIELDS = ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell')
+_PASSWD_FIELDS = ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell')
 # /etc/group fields.
-GROUP_FIELDS = ('name', 'password', 'gid', 'users')
+_GROUP_FIELDS = ('name', 'password', 'gid', 'users')
 
 
 #
@@ -91,7 +90,7 @@ class Host(object):
     host."""
     def __init__(self):
         self.return_code = -1
-        for control, value in iteritems(CONTROLS):
+        for control, value in iteritems(_CONTROLS):
             setattr(self, '_%s' % control, value)
 
 
@@ -122,11 +121,11 @@ class Host(object):
 
     @property
     def controls(self):
-        return {control: getattr(self, '_%s' % control) for control in CONTROLS}
+        return {control: getattr(self, '_%s' % control) for control in _CONTROLS}
 
 
     def get_control(self, control):
-        if control not in CONTROLS:
+        if control not in _CONTROLS:
             raise UnixError("invalid control '%s'" % control)
         return getattr(self, '_%s' % control)
 
@@ -174,7 +173,7 @@ class Host(object):
 
 
     def execute(self):
-        raise NotImplementedError(HOST_CLASS_ERR)
+        raise NotImplementedError(_HOST_CLASS_ERR)
 
 
     @property
@@ -429,11 +428,11 @@ class Remote(Host):
         self.forward_agent = kwargs.pop('forward_agent', True)
         self.username = kwargs.pop('username', 'root')
 
-        if IPV4.match(host):
+        if _IPV4.match(host):
             self.ipv4 = host
             self.fqdn = self.__fqdn()
             self.ipv6 = self.__ipv6()
-        elif IPV6.match(host):
+        elif _IPV6.match(host):
             self.ipv6 = host
             self.ipv4 = self.__ipv4()
             self.fqdn = self.__fqdn()
@@ -444,7 +443,7 @@ class Remote(Host):
             self.fqdn = self.__fqdn()
 
         if not self.ipv4 and not self.ipv6:
-            raise UnixError(IP_ERR)
+            raise UnixError(_IP_ERR)
         self.ip = (self.ipv6 if self.ipv6 and kwargs.pop('ipv6', False)
                              else self.ipv4)
 
@@ -472,7 +471,7 @@ class Remote(Host):
 
     def is_connected(self):
         if self._conn is None or not self._conn.get_transport():
-            raise UnixError(NOT_CONNECTED_ERR)
+            raise UnixError(_NOT_CONNECTED_ERR)
 
 
     def execute(self, command, *args, **options):
@@ -631,7 +630,7 @@ class _Remote(object):
         # Python don't like when argument name is an integer but passing them
         # with kwargs seems to work. So use extra arguments for interger options
         # of the scp command.
-        for mapping, opt in iteritems(SCP_EXTRA_ARGS):
+        for mapping, opt in iteritems(_SCP_EXTRA_ARGS):
             if kwargs.pop(mapping, False):
                 kwargs.setdefault(opt, True)
 
@@ -639,7 +638,7 @@ class _Remote(object):
         # connect timeout).
         cur_opts = [opt.split('=')[0] for opt in kwargs['o']]
         kwargs['o'].extend('%s=%s' % (opt, default)
-                           for opt, default in iteritems(SCP_DEFAULT_OPTS)
+                           for opt, default in iteritems(_SCP_DEFAULT_OPTS)
                            if opt not in cur_opts)
 
         # Format source and destination arguments.
