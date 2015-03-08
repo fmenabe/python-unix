@@ -177,7 +177,11 @@ def Linux(host, root=u''):
         def execute(self, cmd, *args, **kwargs):
             if self.root:
                 cmd = 'chroot %s %s' % (self.root, cmd)
-            return host.execute(cmd, *args, **kwargs)
+            result = host.execute(cmd, *args, **kwargs)
+            # Set return code of the parent. If not set some functions (like
+            # Path) does not work correctly on chrooted objects.
+            self.return_code = host.return_code
+            return result
 
 
         def open(self, filepath, mode='r'):
