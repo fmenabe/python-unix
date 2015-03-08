@@ -7,6 +7,10 @@ from unix.linux._processes import Processes
 from unix.linux._disks import Disks
 from unix.linux._partitions import Partitions
 
+
+#
+# Constants.
+#
 _FILESYSTEMS = (('proc', {'t': 'proc'}),
                 ('sys', {'t': 'sysfs'}),
                 ('/dev', {'o': 'bind'}))
@@ -45,8 +49,8 @@ class ChrootError(Exception):
 def distribution(host):
     distname, version, name = '', '', ''
 
-    # check for the Debian/Ubuntu /etc/lsb-release file first, needed
-    # so that the distribution doesn't get identified as Debian.
+    # Check for the Debian/Ubuntu /etc/lsb-release file first, needed
+    # so that the distribution doesn't get identified as Debian.
     if host.path.exists('/etc/lsb-release'):
         with host.open('/etc/lsb-release') as fhandler:
             _u_distname, _u_version = '', ''

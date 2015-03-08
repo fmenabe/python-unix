@@ -16,7 +16,7 @@ from unix._users import Users
 from unix._groups import Groups
 
 #
-# Logs.
+# Logs.
 #
 import logging
 logger = logging.getLogger('unix')
@@ -56,7 +56,7 @@ _IP_ERR = 'unable to get an IPv4 or an IPv6 addresse.'
 # Regular expression for matching IPv4 address.
 _IPV4 = re.compile(r'^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$')
 
-# Regular expression for matching IPv6 address.
+# Regular expression for matching IPv6 address.
 _IPV6 = re.compile(r'^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
                     '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
                     '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}$')
@@ -341,7 +341,7 @@ class Local(Host):
         prev_size = os.stat(filepath).st_size
         while 1:
             cur_size = os.stat(filepath).st_size
-            # file has been rotate.
+            # File has been rotate.
             if cur_size < prev_size:
                 with self.open(filepath) as fhandler:
                     for line in fhandler.read().splitlines():
@@ -460,8 +460,8 @@ class Remote(Host):
         except Exception as err:
             raise UnixError(err)
 
-        # Optimizations for file transfert
-        # (see https://github.com/paramiko/paramiko/issues/175)
+        # Optimizations for file transfert
+        # (see https://github.com/paramiko/paramiko/issues/175)
         # From 6Mb/s to 12Mb/s => still very slow (scp = 40Mb/s)!
         self._conn.get_transport().window_size = 2147483647
         self._conn.get_transport().packetizer.REKEY_BYTES = pow(2, 40)
@@ -545,7 +545,7 @@ class Remote(Host):
         prev_size = sftp.stat(filepath).st_size
         while 1:
             cur_size = sftp.stat(filepath).st_size
-            # file has been rotate.
+            # File has been rotate.
             if cur_size < prev_size:
                 with self.open(filepath) as fhandler:
                     for line in fhandler.read().splitlines():
