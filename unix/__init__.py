@@ -7,7 +7,6 @@ import select
 import subprocess
 import paramiko
 import weakref
-from six import iteritems
 from contextlib import contextmanager
 from unix._processes import Processes
 from unix._path import Path
@@ -64,10 +63,10 @@ _IPV6 = re.compile(r'^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
 # Extra arguments for 'scp' command as integer argument name raise syntax error
 # when there are passed directly but not in kwargs.
 _SCP_EXTRA_ARGS = {'force_protocol1': '1',
-                  'force_protocol2': '2',
-                  'force_localhost': '3',
-                  'force_ipv4': '4',
-                  'force_ipv6': '6'}
+                   'force_protocol2': '2',
+                   'force_localhost': '3',
+                   'force_ipv4': '4',
+                   'force_ipv6': '6'}
 
 # Set some default value for SSH options of 'scp' command.
 _SCP_DEFAULT_OPTS = {'StrictHostKeyChecking': 'no', 'ConnectTimeout': '2'}
@@ -93,7 +92,7 @@ class Host(object):
     host."""
     def __init__(self):
         self.return_code = -1
-        for control, value in iteritems(_CONTROLS):
+        for control, value in _CONTROLS.items():
             setattr(self, '_%s' % control, value)
 
 
@@ -142,11 +141,11 @@ class Host(object):
         cur_controls = dict(self.controls)
 
         try:
-            for control, value in iteritems(controls):
+            for control, value in controls.items():
                 self.set_control(control, value)
             yield None
         finally:
-            for control, value in iteritems(cur_controls):
+            for control, value in cur_controls.items():
                 self.set_control(control, value)
 
 
@@ -156,7 +155,7 @@ class Host(object):
         if self._options_place == 'after':
             command.extend([str(arg) for arg in args])
 
-        for option, value in iteritems(options):
+        for option, value in options.items():
             option = ('-%s' % option
                       if len(option) == 1
                       else '--%s' % option.replace('_', '-'))
@@ -315,9 +314,9 @@ class Local(Host):
                 self.return_code = subprocess.call(' '.join(command),
                                                    shell=True,
                                                    stderr=subprocess.STDOUT)
-                return [True if self.return_code == 0 else False, '', '']
+                return [True if self.return_code == 0 else False, u'', u'']
             except subprocess.CalledProcessError as err:
-                return [False, '', err]
+                return [False, u'', err]
         else:
             try:
                 obj = subprocess.Popen(' '.join(map(str, command)),
@@ -330,7 +329,7 @@ class Local(Host):
                         stdout.decode(self._decode) if self._decode else stdout,
                         stderr.decode(self._decode) if self._decode else stderr]
             except OSError as err:
-                return [False, '', err]
+                return [False, u'', err]
 
 
     def open(self, filepath, mode='r'):
@@ -405,14 +404,14 @@ class Remote(Host):
         try:
             return socket.getaddrinfo(self.fqdn, 22, 2, 1, 6)[0][4][0]
         except socket.gaierror:
-            return ''
+            return None
 
 
     def __ipv6(self):
         try:
             return socket.getaddrinfo(self.fqdn, 22, 10, 1, 6)[0][4][0]
         except socket.gaierror:
-            return ''
+            return None
 
 
     def __fqdn(self):
@@ -422,9 +421,9 @@ class Remote(Host):
             elif self.ipv6:
                 return socket.gethostbyadd(self.ipv6)[0]
             else:
-                return ''
+                return None
         except socket.herror:
-            return ''
+            return None
 
 
     def connect(self, host, **kwargs):
@@ -451,7 +450,7 @@ class Remote(Host):
                              else self.ipv4)
 
         params = {'username': self.username}
-        for param, value in iteritems(kwargs):
+        for param, value in kwargs.items():
             params[param] = value
         self._conn = paramiko.SSHClient()
         try:
@@ -518,7 +517,7 @@ class Remote(Host):
             stderr = chan.makefile_stderr('rb', -1).read()
             if stderr:
                 print(stderr.decode())
-            return [True if self.return_code == 0 else False, '', '']
+            return [True if self.return_code == 0 else False, u'', u'']
         else:
             chan.exec_command(' '.join(map(str, command)))
             self.return_code = chan.recv_exit_status()

@@ -19,11 +19,11 @@ _RELEASE_FILENAME_RE = re.compile(r'(\w+)[-_](release|version)')
 _LSB_RELEASE_VERSION_RE = re.compile(r'(.+)'
                                      ' release '
                                      '([\d.]+)'
-                                     '[^(]*(?:\((.+)\))?', re.ASCII)
+                                     '[^(]*(?:\((.+)\))?')
 _RELEASE_VERSION_RE = re.compile(r'([^0-9]+)'
                                  '(?: release )?'
                                  '([\d.]+)'
-                                 '[^(]*(?:\((.+)\))?', re.ASCII)
+                                 '[^(]*(?:\((.+)\))?')
 _DISTRIBUTOR_ID_FILE_RE = re.compile("(?:DISTRIB_ID\s*=)\s*(.*)", re.I)
 _RELEASE_FILE_RE = re.compile("(?:DISTRIB_RELEASE\s*=)\s*(.*)", re.I)
 _CODENAME_FILE_RE = re.compile("(?:DISTRIB_CODENAME\s*=)\s*(.*)", re.I)
@@ -47,13 +47,13 @@ class ChrootError(Exception):
 # Utils functions.
 #
 def distribution(host):
-    distname, version, name = '', '', ''
+    distname, version, name = u'', u'', u''
 
     # Check for the Debian/Ubuntu /etc/lsb-release file first, needed
     # so that the distribution doesn't get identified as Debian.
     if host.path.exists('/etc/lsb-release'):
         with host.open('/etc/lsb-release') as fhandler:
-            _u_distname, _u_version = '', ''
+            _u_distname, _u_version = u'', u''
             for line in fhandler.read().splitlines():
                 regex = _DISTRIBUTOR_ID_FILE_RE.search(line.decode())
                 if regex is not None:
@@ -87,7 +87,7 @@ def distribution(host):
     if 'Red Hat' in distname:
         distname = 'RedHat'
     distname = list(distname.split()[0])
-    distname = ''.join([distname[0].upper()] + distname[1:])
+    distname = u''.join([distname[0].upper()] + distname[1:])
     return (distname, _version or version, _name or name)
 
 
@@ -114,7 +114,7 @@ def _dist_try_harder(host):
             if len(pkg) >= 2 and pkg[0] == 'OpenLinux':
                 # XXX does Caldera support non Intel platforms ? If yes,
                 #     where can we find the needed name ?
-                return 'OpenLinux', pkg[1], ''
+                return 'OpenLinux', pkg[1], u''
 
     if host.path.isdir('/usr/lib/setup'):
         # Check for slackware version tag file (thanks to Greg Andruk)
@@ -130,7 +130,7 @@ def _dist_try_harder(host):
 
 
 def _parse_release_file(firstline):
-    version, name = '', ''
+    version, name = u'', u''
 
     # LSB format: "distro release x.x (codename)"
     regex = _LSB_RELEASE_VERSION_RE.match(firstline)
@@ -148,13 +148,13 @@ def _parse_release_file(firstline):
         version = line[0]
         if len(line) > 1:
             name = line[1]
-    return '', version, name
+    return u'', version, name
 
 
 #
 # Base class for managing linux hosts.
 #
-def Linux(host, root=''):
+def Linux(host, root=u''):
     unix.isvalid(host)
     host.is_connected()
 
@@ -171,7 +171,7 @@ def Linux(host, root=''):
 
 
     class LinuxHost(host.__class__):
-        def __init__(self, root=''):
+        def __init__(self, root=u''):
             host.__class__.__init__(self)
             self.__dict__.update(host.__dict__)
             self.root = root
