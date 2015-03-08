@@ -245,7 +245,8 @@ class connect(object):
         self._host.connect(self.hostname, **self.options)
         self._host = Linux(self._host)
         try:
-            self._host = getattr(unix, self._host.distrib[0])(self._host)
+            from . import gnu
+            self._host = getattr(gnu, self._host.distrib[0])(self._host)
         except AttributeError:
             pass
         return self._host
@@ -263,10 +264,11 @@ class chroot(object):
         self.host = Linux(parent, root)
 
         try:
+            from . import gnu
             if distrib is None:
-                self.host = getattr(unix, self.host.distrib[0])(self.host, root)
+                self.host = getattr(gnu, self.host.distrib[0])(self.host, root)
             else:
-                self.host = getattr(unix, distrib)(self.host, root, force)
+                self.host = getattr(gnu, distrib)(self.host, root, force)
         except AttributeError:
             pass
 
@@ -309,9 +311,3 @@ class _Modules(object):
 
     def options(self, module):
         pass
-
-
-#
-# Load distrib packages at this level
-#
-from .distrib import *
