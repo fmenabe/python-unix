@@ -8,11 +8,11 @@ import subprocess
 import paramiko
 import weakref
 from contextlib import contextmanager
-from unix._processes import Processes
-from unix._path import Path
-from unix._remote import Remote
-from unix._users import Users
-from unix._groups import Groups
+from unix._processes import Processes as _Processes
+from unix._path import Path as _Path
+from unix._remote import Remote as _Remote
+from unix._users import Users as _Users
+from unix._groups import Groups as _Groups
 
 #
 # Logs.
@@ -60,22 +60,6 @@ _IPV6 = re.compile(r'^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
                     '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
                     '[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}$')
 
-# Extra arguments for 'scp' command as integer argument name raise syntax error
-# when there are passed directly but not in kwargs.
-_SCP_EXTRA_ARGS = {'force_protocol1': '1',
-                   'force_protocol2': '2',
-                   'force_localhost': '3',
-                   'force_ipv4': '4',
-                   'force_ipv6': '6'}
-
-# Set some default value for SSH options of 'scp' command.
-_SCP_DEFAULT_OPTS = {'StrictHostKeyChecking': 'no', 'ConnectTimeout': '2'}
-
-# /etc/passwd fields.
-_PASSWD_FIELDS = ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell')
-# /etc/group fields.
-_GROUP_FIELDS = ('name', 'password', 'gid', 'users')
-
 
 #
 # Exceptions.
@@ -98,22 +82,22 @@ class Host(object):
 
     @property
     def path(self):
-        return Path(weakref.ref(self)())
+        return _Path(weakref.ref(self)())
 
 
     @property
     def remote(self):
-        return Remote(weakref.ref(self)())
+        return _Remote(weakref.ref(self)())
 
 
     @property
     def users(self):
-        return Users(weakref.ref(self)())
+        return _Users(weakref.ref(self)())
 
 
     @property
     def groups(self):
-        return Groups(weakref.ref(self)())
+        return _Groups(weakref.ref(self)())
 
 
     @property

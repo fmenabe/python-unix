@@ -1,6 +1,6 @@
-#
-# Class for managing users.
-#
+# /etc/passwd fields.
+_PASSWD_FIELDS = ('login', 'password', 'uid', 'gid', 'name', 'home', 'shell')#
+
 class Users(object):
     def __init__(self, host):
         self._host = host
@@ -52,5 +52,3 @@ class Users(object):
     def update(self, user, **kwargs):
         self._host.isroot('usermod')
         return self._host.execute('usermod', user, **kwargs)
-
-

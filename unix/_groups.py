@@ -1,6 +1,6 @@
-#
-# Class for managing groups.
-#
+# /etc/group fields.
+_GROUP_FIELDS = ('name', 'password', 'gid', 'users')
+
 class Groups(object):
     def __init__(self, host):
         self._host = host
@@ -47,5 +47,3 @@ class Groups(object):
         for group in self.list():
             if group['name'] == groupname:
                 return group['users']
-
-

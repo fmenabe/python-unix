@@ -1,6 +1,17 @@
-#
-# Class for managing remote file copy.
-#
+import unix
+
+# Extra arguments for 'scp' command as integer argument name raise syntax error
+# when there are passed directly but not in kwargs.
+_SCP_EXTRA_ARGS = {'force_protocol1': '1',
+                   'force_protocol2': '2',
+                   'force_localhost': '3',
+                   'force_ipv4': '4',
+                   'force_ipv6': '6'}
+
+# Set some default value for SSH options of 'scp' command.
+_SCP_DEFAULT_OPTS = {'StrictHostKeyChecking': 'no', 'ConnectTimeout': '2'}
+
+
 class Remote(object):
     def __init__(self, host):
         self._host = host
@@ -25,7 +36,7 @@ class Remote(object):
         # Python don't like when argument name is an integer but passing them
         # with kwargs seems to work. So use extra arguments for interger options
         # of the scp command.
-        for mapping, opt in iteritems(_SCP_EXTRA_ARGS):
+        for mapping, opt in _SCP_EXTRA_ARGS.items():
             if kwargs.pop(mapping, False):
                 kwargs.setdefault(opt, True)
 
@@ -33,7 +44,7 @@ class Remote(object):
         # connect timeout).
         cur_opts = [opt.split('=')[0] for opt in kwargs['o']]
         kwargs['o'].extend('%s=%s' % (opt, default)
-                           for opt, default in iteritems(_SCP_DEFAULT_OPTS)
+                           for opt, default in _SCP_DEFAULT_OPTS.items()
                            if opt not in cur_opts)
 
         # Format source and destination arguments.
@@ -87,13 +98,13 @@ class Remote(object):
 
 
     def get(self, rmthost, rmtpath, localpath, **kwargs):
-        if ishost(self._host, 'Remote') and rmthost == 'localhost':
-            return Local().remote.put(rmtpath,
-                                      self._host.ip,
-                                      localpath,
-                                      rmtuser=kwargs.pop('rmtuser',
-                                                         self._host.username),
-                                      **kwargs)
+        if unix.ishost(self._host, 'Remote') and rmthost == 'localhost':
+            return unix.Local().remote.put(rmtpath,
+                                           self._host.ip,
+                                           localpath,
+                                           rmtuser=kwargs.pop('rmtuser',
+                                                              self._host.username),
+                                           **kwargs)
 
         method = kwargs.pop('method', 'scp')
         rmtuser = kwargs.pop('rmtuser', 'root')
@@ -107,13 +118,13 @@ class Remote(object):
 
 
     def put(self, localpath, rmthost, rmtpath, **kwargs):
-        if ishost(self._host, 'Remote') and rmthost == 'localhost':
-            return Local().remote.get(self._host.ip,
-                                      localpath,
-                                      rmtpath,
-                                      rmtuser=kwargs.pop('rmtuser',
-                                                         self._host.username),
-                                      **kwargs)
+        if unix.ishost(self._host, 'Remote') and rmthost == 'localhost':
+            return unix.Local().remote.get(self._host.ip,
+                                           localpath,
+                                           rmtpath,
+                                           rmtuser=kwargs.pop('rmtuser',
+                                                              self._host.username),
+                                           **kwargs)
 
         method = kwargs.pop('method', 'scp')
         rmtuser = kwargs.pop('rmtuser', 'root')
@@ -124,5 +135,3 @@ class Remote(object):
             return getattr(self, method)(*args, **kwargs)
         except AttributeError:
             return [False, [], ["unknown copy method '%s'" % method]]
-
-
