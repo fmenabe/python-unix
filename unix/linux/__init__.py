@@ -2,10 +2,7 @@ import os
 import re
 import unix
 import weakref
-from unix.linux._modules import Modules
-from unix.linux._processes import Processes
-from unix.linux._disks import Disks
-from unix.linux._partitions import Partitions
+from unix.linux._modules import Modules as _Modules
 
 
 #
@@ -202,7 +199,7 @@ def Linux(host, root=u''):
 
         @property
         def modules(self):
-            return Modules(weakref.ref(self)())
+            return _Modules(weakref.ref(self)())
 
 
         def fstab(self, filepath='/etc/fstab'):
