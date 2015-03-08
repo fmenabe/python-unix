@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
-
 import os
-import sys
 import re
+import sys
 import time
 import socket
 import select
@@ -11,12 +9,34 @@ import paramiko
 import weakref
 from six import iteritems
 from contextlib import contextmanager
+from unix._processes import Processes
+from unix._path import Path
+from unix._remote import Remote
+from unix._users import Users
+from unix._groups import Groups
 
 #
 # Logs.
 #
 import logging
 logger = logging.getLogger('unix')
+
+
+#
+# Utils functions.
+#
+def instances(host):
+    return list(reversed([elt.__name__.replace('Host', '')
+                          for elt in host.__class__.mro()[:-2]]))
+
+
+def ishost(host, value):
+    return True if value in instances(host) else False
+
+
+def isvalid(host):
+    if instances(host)[0] not in ('Local', 'Remote'):
+        raise ValueError("this is not a 'Local' or a 'Remote' host")
 
 
 #
@@ -59,23 +79,6 @@ _GROUP_FIELDS = ('name', 'password', 'gid', 'users')
 
 
 #
-# Utils functions.
-#
-def instances(host):
-    return list(reversed([elt.__name__.replace('Host', '')
-                          for elt in host.__class__.mro()[:-2]]))
-
-
-def ishost(host, value):
-    return True if value in instances(host) else False
-
-
-def isvalid(host):
-    if instances(host)[0] not in ('Local', 'Remote'):
-        raise ValueError("this is not a 'Local' or a 'Remote' host")
-
-
-#
 # Exceptions.
 #
 class UnixError(Exception):
@@ -96,27 +99,27 @@ class Host(object):
 
     @property
     def path(self):
-        return _Path(weakref.ref(self)())
+        return Path(weakref.ref(self)())
 
 
     @property
     def remote(self):
-        return _Remote(weakref.ref(self)())
+        return Remote(weakref.ref(self)())
 
 
     @property
     def users(self):
-        return _Users(weakref.ref(self)())
+        return Users(weakref.ref(self)())
 
 
     @property
     def groups(self):
-        return _Groups(weakref.ref(self)())
+        return Groups(weakref.ref(self)())
 
 
     @property
     def processes(self):
-        return _Processes(weakref.ref(self)())
+        return Processes(weakref.ref(self)())
 
 
     @property
@@ -555,309 +558,3 @@ class Remote(Host):
             prev_size = cur_size
             time.sleep(delta)
 
-
-#
-# Class for managing filesystem paths.
-#
-class _Path(object):
-    def __init__(self, host):
-        self._host = host
-
-
-    def exists(self, path):
-        """Return the status of ``test -e`` command."""
-        return self._host.execute('test', path, e=True)[0]
-
-
-    def isfile(self, path):
-        """Return the status of ``test -f`` command."""
-        return self._host.execute('test', path, f=True)[0]
-
-
-    def isdir(self, path):
-        """Return the status of ``test -d`` command."""
-        return self._host.execute('test', path, d=True)[0]
-
-
-    def islink(self, path):
-        """Return the status of ``test -L`` command."""
-        return self._host.execute('test', path, L=True)[0]
-
-
-    def type(self, path):
-        """Use ``file`` command for retrieving the type of the **path**."""
-        with self._host.set_controls(decode='utf-8'):
-            status, stdout = self._host.execute('file', path)[:-1]
-        if not status:
-            # For unexpected reasons, errors are in stdout!
-            raise OSError(stdout)
-        return stdout.split(':')[-1].strip()
-
-
-    def size(self, filepath, **options):
-        with self._host.set_controls(decode='utf-8'):
-            options.update(s=True, h=False, k=True)
-            status, stdout, stderr = self._host.execute('du', filepath, **options)
-        if not status:
-            raise OSError(stderr)
-        return int(stdout.split('\t')[0])
-
-
-#
-# Class for managing remote file copy.
-#
-class _Remote(object):
-    def __init__(self, host):
-        self._host = host
-
-
-    def _format_ssh_arg(self, user, host, filepath):
-        return (('%s@' % user if (user and host) else '')
-                + (host or '')
-                + (('%s%s' % (':' if host else '', filepath))
-                   if filepath
-                   else ''))
-
-
-    def scp(self, src_file, dst_file, **kwargs):
-        # ssh_options (-o) can be passed many time so this must be a list.
-        kwargs['o'] = kwargs.get('o', [])
-        if type(kwargs['o']) not in (list, tuple):
-            raise AttributeError("'o' argument of 'scp' function must be a list"
-                                 " as there can be many SSH options passed to "
-                                 "the command.")
-
-        # Python don't like when argument name is an integer but passing them
-        # with kwargs seems to work. So use extra arguments for interger options
-        # of the scp command.
-        for mapping, opt in iteritems(_SCP_EXTRA_ARGS):
-            if kwargs.pop(mapping, False):
-                kwargs.setdefault(opt, True)
-
-        # Change default value of some SSH options (like host key checking and
-        # connect timeout).
-        cur_opts = [opt.split('=')[0] for opt in kwargs['o']]
-        kwargs['o'].extend('%s=%s' % (opt, default)
-                           for opt, default in iteritems(_SCP_DEFAULT_OPTS)
-                           if opt not in cur_opts)
-
-        # Format source and destination arguments.
-        src = self._format_ssh_arg(kwargs.pop('src_user', ''),
-                                   kwargs.pop('src_host', ''),
-                                   src_file)
-        dst = self._format_ssh_arg(kwargs.pop('dst_user', ''),
-                                   kwargs.pop('dst_host', ''),
-                                   dst_file)
-
-        return self._host.execute('scp', src, dst, **kwargs)
-
-
-    def rsync(self, src_file, dst_file, **kwargs):
-        src = self._format_ssh_arg(kwargs.pop('src_user', ''),
-                                   kwargs.pop('src_host', ''),
-                                   src_file)
-        dst = self._format_ssh_arg(kwargs.pop('dst_user', ''),
-                                   kwargs.pop('dst_host', ''),
-                                   dst_file)
-
-        return self._host.execute('rsync', src, dst, **kwargs)
-
-
-    def tar(self, src_file, dst_file, src_opts={}, dst_opts={}, **kwargs):
-        src_ssh = '%s' % self._format_ssh_arg(kwargs.pop('src_user', ''),
-                                              kwargs.pop('src_host', ''),
-                                              '')
-        dst_ssh = '%s' % self._format_ssh_arg(kwargs.pop('dst_user', ''),
-                                              kwargs.pop('dst_host', ''),
-                                              '')
-
-        interactive = kwargs.pop('interactive', False)
-
-        src_cmd = ['tar cf -']
-        src_opts.update(kwargs)
-        src_opts.setdefault('C', os.path.dirname(src_file))
-        self._format_command(src_cmd, [os.path.basename(src_file)], src_opts)
-
-        dst_cmd = ['tar xf -']
-        dst_opts.update(kwargs)
-        dst_opts.setdefault('C', dst_file)
-        self._format_command(dst_cmd, [], dst_opts)
-
-        cmd = ['ssh %s' % src_ssh if src_ssh else '']
-        cmd.extend(src_cmd)
-        cmd.append('|')
-        cmd.append('ssh %s' % dst_ssh if dst_ssh else '')
-        cmd.extend(dst_cmd)
-        return self._host.execute(*cmd, interactive=interactive)
-
-
-    def get(self, rmthost, rmtpath, localpath, **kwargs):
-        if ishost(self._host, 'Remote') and rmthost == 'localhost':
-            return Local().remote.put(rmtpath,
-                                      self._host.ip,
-                                      localpath,
-                                      rmtuser=kwargs.pop('rmtuser',
-                                                         self._host.username),
-                                      **kwargs)
-
-        method = kwargs.pop('method', 'scp')
-        rmtuser = kwargs.pop('rmtuser', 'root')
-
-        try:
-            args = (rmtpath, localpath)
-            kwargs.update(src_host=rmthost, src_user=rmtuser)
-            return getattr(self, method)(*args, **kwargs)
-        except AttributeError:
-            return [False, [], ["unknown copy method '%s'" % method]]
-
-
-    def put(self, localpath, rmthost, rmtpath, **kwargs):
-        if ishost(self._host, 'Remote') and rmthost == 'localhost':
-            return Local().remote.get(self._host.ip,
-                                      localpath,
-                                      rmtpath,
-                                      rmtuser=kwargs.pop('rmtuser',
-                                                         self._host.username),
-                                      **kwargs)
-
-        method = kwargs.pop('method', 'scp')
-        rmtuser = kwargs.pop('rmtuser', 'root')
-
-        try:
-            args = (localpath, rmtpath)
-            kwargs.update(dst_host=rmthost, dst_user=rmtuser)
-            return getattr(self, method)(*args, **kwargs)
-        except AttributeError:
-            return [False, [], ["unknown copy method '%s'" % method]]
-
-
-#
-# Class for managing users.
-#
-class _Users(object):
-    def __init__(self, host):
-        self._host = host
-
-
-    def details(self):
-        status, stdout, stderr = self._host.execute('getent', 'passwd')
-        if not status:
-            raise UserError(stderr)
-        return [dict(zip(PASSWD_FIELDS, user.split(':'))) for user in stdout]
-
-
-    def list(self):
-        return [user['login'] for user in self.details()]
-
-
-    def uid(self, username):
-        status, stdout, stderr = self._host.execute('id', u=username)
-        if not status:
-            raise UserError(stderr)
-        return int(stdout[0])
-
-
-    def username(self, uid):
-        status, stdout, stderr = self._host.execute('getent', 'passwd', uid)
-        if not status:
-            raise UserError(stderr)
-        return stdout[0].split(':')[0]
-
-
-    def groups(self, username):
-        status, stdout, stderr = self._host.execute('id', G=username)
-
-
-    def detail(self, uid):
-        status, stdout, stderr = self._host.execute('getent', 'passwd', uid)
-        if not status:
-            raise UserError(stderr)
-        return dict(zip(PASSWD_FIELDS, stdout[0].split('')))
-
-
-    def add(self, user, **kwargs):
-        self._host.asroot('useradd')
-        return self._host.execute('useradd', user, **kwargs)
-
-
-    def delete(self, user, **kwargs):
-        self._host.asroot('userdel')
-        return self._host.execute('userdel', user, **kwargs)
-
-
-    def update(self, user, **kwargs):
-        self._host.asroot('usermod')
-        return self._host.execute('usermod', user, **kwargs)
-
-
-#
-# Class for managing groups.
-#
-class _Groups(object):
-    def __init__(self, host):
-        self._host = host
-
-
-    def list(self):
-        status, stdout, stderr = self._host.execute('getent', 'group')
-        if not status:
-            raise UserError(stderr)
-        groups = []
-        for line in stdout:
-            group = dict(zip(GROUP_FIELDS, line.split(':')))
-            group['users'] = group['users'].split(',') if group['users'] else []
-        return groups
-
-
-    def gid(self, groupname):
-        status, stdout, stderr = self._host.execute('id', g=username)
-        if not status:
-            raise UserError(stderr)
-        return int(stdout[0])
-
-
-    def groupname(self, gid):
-        status, stdout, stderr = self._host.execute('getent', 'group', gid)
-        if not status:
-            raise UserError(stderr)
-        return stdout[0].split(':')[0]
-
-
-    def add(self, group, **kwargs):
-        self._host.asroot('groupadd')
-        return self._host.execute('groupadd', group, **kwargs)
-
-
-    def delete(self, group):
-        self._host.asroot('groupdel')
-        return self._host.execute('groupdel', group)
-
-
-    def update(self, group, **kwargs):
-        self._host.asroot('groupmod')
-        return self._host.execute('groupmod', group, **kwargs)
-
-
-    def users(self, groupname):
-        for group in self.list():
-            if group['name'] == groupname:
-                return group['users']
-
-
-#
-# Class for managing process.
-#
-class _Processes(object):
-    def __init__(self, host):
-        self._host = host
-
-
-    def kill(self, pid, **options):
-        return self._host.execute('kill', pid, **options)
-
-
-#
-# Add subpackages at this level.
-#
-from unix.linux import Linux, chroot
-from unix.linux.distrib import *
