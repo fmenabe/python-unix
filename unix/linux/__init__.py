@@ -2,6 +2,7 @@ import os
 import re
 import unix
 import weakref
+from contextlib import contextmanager
 from unix.linux._modules import Modules as _Modules
 
 
@@ -151,7 +152,7 @@ def _parse_release_file(firstline):
 #
 # Base class for managing linux hosts.
 #
-def Linux(host, root=u''):
+def Linux(host):
     unix.isvalid(host)
     host.is_connected()
 
@@ -159,36 +160,14 @@ def Linux(host, root=u''):
     if len(instances) > 1:
         host = getattr(unix, instances[0]).clone(host)
 
-    if root and host.username != 'root':
-        raise LinuxError('you need to be root for chroot')
-
     host_type = host.type
     if host_type != 'linux':
         raise LinuxError('this is not a Linux host (%s)' % host_type)
 
-
     class LinuxHost(host.__class__):
-        def __init__(self, root=u''):
+        def __init__(self):
             host.__class__.__init__(self)
             self.__dict__.update(host.__dict__)
-            self.root = root
-
-
-        def execute(self, cmd, *args, **kwargs):
-            if self.root:
-                cmd = 'chroot %s %s' % (self.root, cmd)
-            result = host.execute(cmd, *args, **kwargs)
-            # Set return code of the parent. If not set some functions (like
-            # Path) does not work correctly on chrooted objects.
-            self.return_code = host.return_code
-            return result
-
-
-        def open(self, filepath, mode='r'):
-            if self.root:
-                filepath = filepath[1:] if filepath.startswith('/') else filepath
-                filepath = os.path.join(self.root, filepath)
-            return host.open(filepath, mode)
 
 
         @property
@@ -198,7 +177,7 @@ def Linux(host, root=u''):
 
         @property
         def chrooted(self):
-            return True if self.root else False
+            return False
 
 
         @property
@@ -219,24 +198,78 @@ def Linux(host, root=u''):
                         for elts in [line.decode().split()]}
 
 
-    def chroot(self):
-        for (fs, opts) in _FILESYSTEMS:
-            status, _, stderr = host.mount(fs, os.path.join(root, fs), **opts)
-            if not status:
-                raise ChrootError("unable to mount '%s': %s" % (fs, stderr))
+    return LinuxHost()
 
 
-    def unchroot(self):
-        for fs in _FILESYSTEMS:
-            status, _, stderr = host.umount(os.path.join(root, fs[0]))
-            if not status:
-                raise ChrootError("unable to umount '%s': %s" % (fs, stderr))
+def Chroot(host, root):
+    unix.isvalid(host)
+    host.is_connected()
 
-    if root:
-        setattr(LinuxHost, 'chroot', chroot)
-        setattr(LinuxHost, 'unchroot', unchroot)
+    if root and host.username != 'root':
+        raise ChrootError('you need to be root for chroot')
 
-    return LinuxHost(root)
+    instances = unix.instances(host)
+    if len(instances) > 1:
+        host = getattr(unix, instances[0]).clone(host)
+    host = Linux(host)
+
+    class ChrootHost(host.__class__):
+        def __init__(self, root):
+            host.__class__.__init__(self)
+            self.__dict__.update(host.__dict__)
+            self.root = root
+
+
+        @property
+        def chrooted(self):
+            return True
+
+
+        def execute(self, cmd, *args, **kwargs):
+            if self.root:
+                cmd = 'chroot %s %s' % (self.root, cmd)
+            result = host.execute(cmd, *args, **kwargs)
+            # Set return code of the parent. If not set some functions (like
+            # Path) does not work correctly on chrooted objects.
+            self.return_code = host.return_code
+            return result
+
+
+        def open(self, filepath, mode='r'):
+            if self.root:
+                filepath = filepath[1:] if filepath.startswith('/') else filepath
+                filepath = os.path.join(self.root, filepath)
+            return host.open(filepath, mode)
+
+
+        @contextmanager
+        def set_controls(self, **controls):
+            cur_controls = dict(host.controls)
+
+            try:
+                for control, value in controls.items():
+                    host.set_control(control, value)
+                yield None
+            finally:
+                for control, value in cur_controls.items():
+                    host.set_control(control, value)
+
+
+        def chroot(self):
+            for (fs, opts) in _FILESYSTEMS:
+                status, _, stderr = host.mount(fs, os.path.join(root, fs), **opts)
+                if not status:
+                    raise ChrootError("unable to mount '%s': %s" % (fs, stderr))
+
+
+        def unchroot(self):
+            for fs in _FILESYSTEMS:
+                status, _, stderr = host.umount(os.path.join(root, fs[0]))
+                if not status:
+                    raise ChrootError("unable to umount '%s': %s" % (fs, stderr))
+
+
+    return ChrootHost(root)
 
 
 #
@@ -268,7 +301,7 @@ class connect(object):
 #
 class chroot(object):
     def __init__(self, parent, root, distrib=None, force=False):
-        self.host = Linux(parent, root)
+        self.host = Chroot(Linux(parent), root)
 
         try:
             from . import gnu
