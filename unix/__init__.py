@@ -317,6 +317,10 @@ class Local(Host):
 
 
     def open(self, filepath, mode='r'):
+        # For compatibility with SFTPClient object, the file is always open
+        # in binary mode.
+        if 'b' not in mode:
+            mode += 'b'
         return open(filepath, mode)
 
 
@@ -519,6 +523,11 @@ class Remote(Host):
     def open(self, filepath, mode='r'):
         self.is_connected()
         sftp = paramiko.SFTPClient.from_transport(self._conn.get_transport())
+        # File is always open in binary mode but 'readline' function decode
+        # the line if the binary mode is not specified! So force the binary mode
+        # for letting client program decoding lines.
+        if 'b' not in mode:
+            mode += 'b'
         return sftp.open(filepath, mode)
 
 
