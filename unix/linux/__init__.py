@@ -77,7 +77,7 @@ def distribution(host):
 
     # Read the first line.
     with host.open(os.path.join('/etc', filename)) as fhandler:
-        firstline = fhandler.readline()
+        firstline = fhandler.readline().decode()
     _distname, _version, _name = _parse_release_file(firstline)
 
     distname = _distname or distname
@@ -93,10 +93,10 @@ def _dist_try_harder(host):
         # SuSE Linux stores distribution information in that file
         distname = 'SuSE'
         for line in host.open('/var/adm/inst-log/info'):
-            line = line.split()
+            line = line.decode().split()
             if len(line) != 2:
                 continue
-            tag, value = line.split()
+            tag, value = line
             if tag == 'MIN_DIST_VERSION':
                 version = value.strip()
             elif tag == 'DIST_IDENT':
@@ -107,7 +107,7 @@ def _dist_try_harder(host):
         # Caldera OpenLinux has some infos in that file
         # (thanks to Colin Kong)
         for line in open('/etc/.installed'):
-            pkg = line.split('-')
+            pkg = line.decode().split('-')
             if len(pkg) >= 2 and pkg[0] == 'OpenLinux':
                 # XXX does Caldera support non Intel platforms ? If yes,
                 #     where can we find the needed name ?
