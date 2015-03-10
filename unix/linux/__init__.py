@@ -3,6 +3,7 @@ import re
 import unix
 import weakref
 from contextlib import contextmanager
+from unix.linux._conf import Conf as _Conf
 from unix.linux._modules import Modules as _Modules
 
 
@@ -178,6 +179,11 @@ def Linux(host):
         @property
         def chrooted(self):
             return False
+
+
+        @property
+        def conf(self):
+            return _Conf(weakref.ref(self)())
 
 
         @property
