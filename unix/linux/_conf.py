@@ -59,7 +59,7 @@ class Conf:
 
         # Write content to the file.
         try:
-            with self._host.open(_SHADOW_FILE, 'a') as fhandler:
+            with self._host.open(_SHADOW_FILE, 'w') as fhandler:
                 fhandler.write(u'\n'.join(content))
             return [True, u'', u'']
         except OSError as err:
