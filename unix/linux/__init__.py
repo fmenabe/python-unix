@@ -16,16 +16,16 @@ _FILESYSTEMS = (('proc', {'t': 'proc'}),
 
 _RELEASE_FILENAME_RE = re.compile(r'(\w+)[-_](release|version)')
 _LSB_RELEASE_VERSION_RE = re.compile(r'(.+)'
-                                     ' release '
-                                     '([\d.]+)'
-                                     '[^(]*(?:\((.+)\))?')
+                                      ' release '
+                                      '([\d.]+)'
+                                      '[^(]*(?:\((.+)\))?')
 _RELEASE_VERSION_RE = re.compile(r'([^0-9]+)'
-                                 '(?: release )?'
-                                 '([\d.]+)'
-                                 '[^(]*(?:\((.+)\))?')
-_DISTRIBUTOR_ID_FILE_RE = re.compile("(?:DISTRIB_ID\s*=)\s*(.*)", re.I)
-_RELEASE_FILE_RE = re.compile("(?:DISTRIB_RELEASE\s*=)\s*(.*)", re.I)
-_CODENAME_FILE_RE = re.compile("(?:DISTRIB_CODENAME\s*=)\s*(.*)", re.I)
+                                  '(?: release )?'
+                                  '([\d.]+)'
+                                  '[^(]*(?:\((.+)\))?')
+_DISTRIBUTOR_ID_FILE_RE = re.compile(r'(?:DISTRIB_ID\s*=)\s*(.*)', re.I)
+_RELEASE_FILE_RE = re.compile(r'(?:DISTRIB_RELEASE\s*=)\s*(.*)', re.I)
+_CODENAME_FILE_RE = re.compile(r'(?:DISTRIB_CODENAME\s*=)\s*(.*)', re.I)
 
 _SUPPORTED_DISTS = ('SuSE', 'debian', 'fedora', 'redhat', 'centos', 'mandrake',
                     'mandriva', 'rocks', 'slackware', 'yellowdog', 'gentoo',
