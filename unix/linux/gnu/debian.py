@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
+import os
 import unix
 import unix.linux as linux
 from .. import Linux, Chroot, LinuxError
 
 DISTRIBS = ('Debian', 'Ubuntu')
+
+_HOSTNAMEFILE = '/etc/hostname'
 
 def Debian(host, force=False):
     unix.isvalid(host)
@@ -31,12 +34,15 @@ def Debian(host, force=False):
             return self.execute('dpkg -l')
 
 
-        def set_hostname(self, hostname):
-            try:
-                with self.open('/etc/hostname', 'w') as fhandler:
-                    fhandler.write(hostname)
-            except Exception as err:
-                return [False, '', err]
-            return [True, '', '']
+        @property
+        def hostname(self):
+            with self.open(_HOSTNAMEFILE) as fhandler:
+                return fhandler.read().decode()
+
+
+        @hostname.setter
+        def hostname(self, value):
+            with self.open(_HOSTNAMEFILE, 'w') as fhandler:
+                fhandler.write(value)
 
     return DebianHost(root)

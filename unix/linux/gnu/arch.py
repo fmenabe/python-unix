@@ -4,8 +4,7 @@ import sys
 import unix
 from .. import Linux, Chroot, LinuxError
 
-SELF = sys.modules[__name__]
-
+_HOSTNAMEFILE = '/etc/hostname'
 
 def Arch(host, force=False):
     unix.isvalid(host)
@@ -27,5 +26,17 @@ def Arch(host, force=False):
             kwargs = {'root': root} if root else {}
             host.__class__.__init__(self, **kwargs)
             self.__dict__.update(host.__dict__)
+
+
+        @property
+        def hostname(self):
+            with self.open(_HOSTNAMEFILE) as fhandler:
+                return fhandler.read().decode()
+
+
+        @hostname.setter
+        def hostname(self, value):
+            with self.open(_HOSTNAMEFILE, 'w') as fhandler:
+                fhandler.write(value)
 
     return ArchHost(root)

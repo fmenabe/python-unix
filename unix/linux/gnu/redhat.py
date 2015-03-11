@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 
+import re
+import os
 import unix
 from .. import Linux, Chroot, LinuxError
 
 DISTRIBS = ('RedHat', 'CentOS')
+
+_CONFDIR =  '/etc/sysconfig'
+_NETFILE = os.path.join(_CONFDIR, 'network')
 
 def RedHat(host, force=False):
     unix.isvalid(host)
@@ -19,7 +24,7 @@ def RedHat(host, force=False):
     if host.distrib[0] not in DISTRIBS and not force:
         raise LinuxError('invalid distrib')
 
-    class RedhatHost(host.__class__):
+    class RedHatHost(host.__class__):
         def __init__(self, root=''):
             kwargs = {'root': root} if root else {}
             host.__class__.__init__(self, **kwargs)
@@ -30,8 +35,23 @@ def RedHat(host, force=False):
             return self.execute('dpkg -l')
 
 
-        def set_hostname(self, hostname):
-            with self.open('/etc/hostname') as fhandler:
-                fhandler.write(hostname)
+        @property
+        def hostname(self):
+            with self.open(_NETFILE) as fhandler:
+                for line in fhandler.read().splitlines():
+                    attr, value = line.split('=')
+                    if attr == 'HOSTNAME':
+                        return value
 
-    return RedhatHost(root)
+
+        @hostname.setter
+        def hostname(self, value):
+            contnet = ''
+            with self.open(_NETFILE) as fhandler:
+                content = re.sub('HOSTNAME=[^\n]*',
+                                 'HOSTNAME=%s\n' % value,
+                                 fhandler.read())
+            with self.open(_NETFILE, 'w') as fhandler:
+                fhandler.write(content)
+
+    return RedHatHost(root)
