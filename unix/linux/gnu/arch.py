@@ -22,7 +22,7 @@ def Arch(host, force=False):
 
 
     class ArchHost(host.__class__):
-        def __init__(self, root):
+        def __init__(self):
             kwargs = {'root': root} if root else {}
             host.__class__.__init__(self, **kwargs)
             self.__dict__.update(host.__dict__)
@@ -31,7 +31,7 @@ def Arch(host, force=False):
         @property
         def hostname(self):
             with self.open(_HOSTNAMEFILE) as fhandler:
-                return fhandler.read().decode()
+                return fhandler.read().decode().strip()
 
 
         @hostname.setter
@@ -39,4 +39,4 @@ def Arch(host, force=False):
             with self.open(_HOSTNAMEFILE, 'w') as fhandler:
                 fhandler.write(value)
 
-    return ArchHost(root)
+    return ArchHost()

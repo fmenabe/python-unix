@@ -25,7 +25,7 @@ def RedHat(host, force=False):
         raise LinuxError('invalid distrib')
 
     class RedHatHost(host.__class__):
-        def __init__(self, root=''):
+        def __init__(self):
             kwargs = {'root': root} if root else {}
             host.__class__.__init__(self, **kwargs)
             self.__dict__.update(host.__dict__)
@@ -54,4 +54,4 @@ def RedHat(host, force=False):
             with self.open(_NETFILE, 'w') as fhandler:
                 fhandler.write(content)
 
-    return RedHatHost(root)
+    return RedHatHost()

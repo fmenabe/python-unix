@@ -21,9 +21,8 @@ def CentOS(host, root='', force=False):
 
 
     class CentOSHost(host.__class__):
-        def __init__(self, root=''):
-            kwargs = {'root': root} if root else {}
-            host.__class__.__init__(self, **kwargs)
+        def __init__(self):
+            host.__class__.__init__(self)
             self.__dict__.update(host.__dict__)
 
-    return CentOSHost(root)
+    return CentOSHost()

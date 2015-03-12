@@ -29,7 +29,7 @@ def Debian(host, force=False):
         raise LinuxError('invalid distrib')
 
     class DebianHost(host.__class__):
-        def __init__(self, root=''):
+        def __init__(self):
             kwargs = {'root': root} if root else {}
             host.__class__.__init__(self, **kwargs)
             self.__dict__.update(host.__dict__)
@@ -42,7 +42,7 @@ def Debian(host, force=False):
         @property
         def hostname(self):
             with self.open(_HOSTNAMEFILE) as fhandler:
-                return fhandler.read().decode()
+                return fhandler.read().decode().strip()
 
 
         @hostname.setter
@@ -56,7 +56,7 @@ def Debian(host, force=False):
             return _Network(weakref.ref(self)())
 
 
-    return DebianHost(root)
+    return DebianHost()
 
 
 class _Network:

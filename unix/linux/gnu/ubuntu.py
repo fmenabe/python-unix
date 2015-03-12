@@ -21,9 +21,9 @@ def Ubuntu(host, force=False):
 
 
     class UbuntuHost(host.__class__):
-        def __init__(self, root=''):
-            kwargs = {'root': root} if root else {}
-            host.__class__.__init__(self, **kwargs)
+        def __init__(self):
+#            kwargs = {'root': root} if root else {}
+            host.__class__.__init__(self)
             self.__dict__.update(host.__dict__)
 
-    return UbuntuHost(root)
+    return UbuntuHost()
