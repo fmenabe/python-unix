@@ -135,7 +135,8 @@ class Host(object):
 
     def _format_command(self, command, args, options):
         command = ['LC_ALL=%s' % self._locale, command]
-        interactive = options.pop('interactive', False)
+        interactive = options.pop('INTERACTIVE', False)
+        stdin = options.pop('STDIN', None)
         if self._options_place == 'after':
             command.extend([str(arg) for arg in args])
 
@@ -154,6 +155,9 @@ class Host(object):
 
         if self._options_place == 'before':
             command.extend(args)
+
+        if stdin:
+            command.append(' < %s' % stdin)
         logger.debug('[execute] %s' % ' '.join(map(str, command)))
         return command, interactive
 
@@ -210,14 +214,14 @@ class Host(object):
     def mkdir(self, *paths, **options):
         """Create a directory. *args and **options contains options that can be
         passed to the command. **options can contain an additionnal key
-        *interactive* that will be pass to ``execute`` function."""
+        *INTERACTIVE* that will be pass to ``execute`` function."""
         return self.execute('mkdir', *paths, **options)
 
 
     def copy(self, *paths, **options):
         """Copy **src** file or directory to **dst**. *args and **options
         contains options that can be passed to the command. **options can
-        contain an additionnal key *interactive* that will be pass to
+        contain an additionnal key *INTERACTIVE* that will be pass to
         ``execute`` function."""
         return self.execute('cp', *paths, **options)
 
@@ -287,7 +291,7 @@ class Local(Host):
         """Function that execute a command using english utf8 locale. The output
         is a list of three elements: a boolean representing the status of the
         command (True if return code equal to 0), the standard output (stdout)
-        and the error output (stderr). If **interactive**, the command is
+        and the error output (stderr). If **INTERACTIVE**, the command is
         executed interactively (printing output in real time and waiting for
         inputs) and stdout and stderr are empty. The return code of the last
         command is put in *return_code* attribut."""
