@@ -2,7 +2,7 @@
 
 from __future__ import unicode_literals
 import sys
-from six.moves import range
+import subprocess
 
 class ShellError(Exception):
     pass
@@ -11,6 +11,9 @@ class ShellError(Exception):
 class QuitOnError(Exception):
     pass
 
+
+width = lambda: int(subprocess.check_output(['tput', 'cols']))
+height = lambda: int(subprocess.check_output(['tput', 'lines']))
 
 #
 # Messages.
