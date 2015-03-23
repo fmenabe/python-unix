@@ -4,6 +4,7 @@ import unix
 import weakref
 from contextlib import contextmanager
 from unix.linux._conf import Conf as _Conf
+from unix.linux._memory import Memory as _Memory
 from unix.linux._modules import Modules as _Modules
 
 
@@ -184,6 +185,11 @@ def Linux(host):
         @property
         def conf(self):
             return _Conf(weakref.ref(self)())
+
+
+        @property
+        def memory(self):
+            return _Memory(weakref.ref(self)())
 
 
         @property
