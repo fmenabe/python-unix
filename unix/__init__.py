@@ -133,8 +133,10 @@ class Host(object):
                 self.set_control(control, value)
 
 
-    def _format_command(self, command, args, options):
-        command = ['LC_ALL=%s' % self._locale, command]
+    def _format_command(self, cmd, args, options):
+        command = ['%s=%s' % (var, self._locale)
+                   for var in ('LC_ALL', 'LANGUAGE', 'LANG')]
+        command.append(cmd)
         interactive = options.pop('INTERACTIVE', False)
         stdin = options.pop('STDIN', None)
         if self._options_place == 'after':
