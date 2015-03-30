@@ -38,6 +38,10 @@ def isvalid(host):
         raise ValueError("this is not a 'Local' or a 'Remote' host")
 
 
+def format_path(path):
+    return '\ '.join(path.split(' '))
+
+
 #
 # Constants
 #
@@ -197,6 +201,7 @@ class Host(object):
             **OSError** exception if **path** not exists or if there is another
             unexpected error.
         """
+        path = format_path(path)
         if not self.path.exists(path):
             raise OSError("'%s' not exists" % path)
         if not self.path.isdir(path):
@@ -210,6 +215,7 @@ class Host(object):
 
 
     def touch(self, *paths, **options):
+        paths = [format_path(path) for path in paths]
         return self.execute('touch', *paths, **options)
 
 
@@ -217,6 +223,7 @@ class Host(object):
         """Create a directory. *args and **options contains options that can be
         passed to the command. **options can contain an additionnal key
         *INTERACTIVE* that will be pass to ``execute`` function."""
+        paths = [format_path(path) for path in paths]
         return self.execute('mkdir', *paths, **options)
 
 
@@ -225,26 +232,32 @@ class Host(object):
         contains options that can be passed to the command. **options can
         contain an additionnal key *INTERACTIVE* that will be pass to
         ``execute`` function."""
+        paths = [format_path(path) for path in paths]
         return self.execute('cp', *paths, **options)
 
 
     def move(self, *paths, **options):
+        paths = [format_path(path) for path in paths]
         return self.execute('mv', *paths, **options)
 
 
     def remove(self, *paths, **options):
+        paths = [format_path(path) for path in paths]
         return self.execute('rm', *paths, **options)
 
 
     def chmod(self, permissions, *paths, **options):
+        paths = [format_path(path) for path in paths]
         return self.execute('chmod', permissions, *paths, **options)
 
 
     def chown(self, owner, *paths, **options):
+        paths = [format_path(path) for path in paths]
         return self.execute('chown', owner, *paths, **options)
 
 
     def chgrp(self, group, *paths, **options):
+        paths = [format_path(path) for path in paths]
         return self.execute('chgrp', group, *path, **options)
 
 
@@ -256,10 +269,12 @@ class Host(object):
 
 
     def mount(self, device, mount_point, **options):
+        mount_point = format_path(mount_point)
         return self.execute('mount', device, mount_point, **options)
 
 
     def umount(self, mount_point, **options):
+        mount_point = format_path(mount_point)
         return self.execute('umount', mount_point, **options)
 
 
@@ -529,7 +544,7 @@ class Remote(Host):
     def open(self, filepath, mode='r'):
         self.is_connected()
         sftp = paramiko.SFTPClient.from_transport(self._conn.get_transport())
-        # File is always open in binary mode but 'readline' function decode
+        # File is always open in binary mode but 'readline' function decode
         # the line if the binary mode is not specified! So force the binary mode
         # for letting client program decoding lines.
         if 'b' not in mode:
