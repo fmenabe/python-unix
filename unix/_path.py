@@ -1,3 +1,4 @@
+import re
 import unix
 
 
@@ -54,3 +55,8 @@ class Path(object):
         if not status:
             raise OSError(stderr)
         return int(stdout.split('\t')[0])
+
+
+    def permissions(self, path):
+        stdout = self._host.list(path, d=True, l=True)
+        return re.split('\s+', stdout.splitlines()[0])[0]
