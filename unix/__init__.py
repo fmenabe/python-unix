@@ -164,7 +164,9 @@ class Host(object):
 
         if stdin:
             command.append(' < %s' % stdin)
-        logger.debug('[execute] %s' % ' '.join(map(str, command)))
+
+        command = ' '.join(map(str, command))
+        logger.debug('[execute] %s' % command)
         return command, interactive
 
 
@@ -316,7 +318,7 @@ class Local(Host):
 
         if interactive:
             try:
-                self.return_code = subprocess.call(' '.join(command),
+                self.return_code = subprocess.call(command,
                                                    shell=True,
                                                    stderr=subprocess.STDOUT)
                 return [True if self.return_code == 0 else False, u'', u'']
@@ -324,7 +326,7 @@ class Local(Host):
                 return [False, u'', err]
         else:
             try:
-                obj = subprocess.Popen(' '.join(map(str, command)),
+                obj = subprocess.Popen(command,
                                        shell=True,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
@@ -497,7 +499,7 @@ class Remote(Host):
 
         if interactive:
             chan.settimeout(0.0)
-            chan.exec_command(' '.join(command))
+            chan.exec_command(command)
             while True:
                 rlist = select.select([chan, sys.stdin], [], [])[0]
                 if chan in rlist:
@@ -528,7 +530,7 @@ class Remote(Host):
                 print(stderr.decode())
             return [True if self.return_code == 0 else False, u'', u'']
         else:
-            chan.exec_command(' '.join(map(str, command)))
+            chan.exec_command(command)
             self.return_code = chan.recv_exit_status()
             stdout = chan.makefile('rb', -1).read()
             stderr = chan.makefile_stderr('rb', -1).read()
