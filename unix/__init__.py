@@ -193,6 +193,13 @@ class Host(object):
         return self.execute('hostname')[1].splitlines()[0]
 
 
+    def list(self, path, **opts):
+        status, stdout, stderr = self.execute('ls', escape_path(path), **opts)
+        if not status:
+            raise OSError(stderr)
+        return stdout
+
+
     def listdir(self, path):
         """List files in a directory.
 
@@ -203,17 +210,12 @@ class Host(object):
             **OSError** exception if **path** not exists or if there is another
             unexpected error.
         """
-        path = format_path(path)
         if not self.path.exists(path):
             raise OSError("'%s' not exists" % path)
         if not self.path.isdir(path):
             raise OSError("'%s' is not a directory" % path)
 
-        status, stdout, stderr = self.execute('ls', path)
-        if not status:
-            raise OSError(stderr)
-
-        return stdout.splitlines()
+        return self.list(path).splitlines()
 
 
     def touch(self, *paths, **options):
