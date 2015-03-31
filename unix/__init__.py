@@ -38,17 +38,14 @@ def isvalid(host):
         raise ValueError("this is not a 'Local' or a 'Remote' host")
 
 
-def format_path(path):
-    return '\ '.join(path.split(' '))
-
-
 #
 # Constants
 #
 # Available controls with their defaults values.
 _CONTROLS = {'options_place': 'before',
              'locale': 'en_US.utf-8',
-             'decode': 'utf-8'}
+             'decode': 'utf-8',
+             'shell': None}
 
 # Errors.
 _HOST_CLASS_ERR = ("don't use 'Host' class directly, use 'Local' or "
@@ -166,6 +163,8 @@ class Host(object):
             command.append(' < %s' % stdin)
 
         command = ' '.join(map(str, command))
+        if self._shell:
+            command = 'bash -c "%s"' % command.replace('"', '\\"')
         logger.debug('[execute] %s' % command)
         return command, interactive
 
