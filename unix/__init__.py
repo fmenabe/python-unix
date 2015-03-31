@@ -476,6 +476,12 @@ class Remote(Host):
         self._conn.get_transport().packetizer.REKEY_BYTES = pow(2, 40)
         self._conn.get_transport().packetizer.REKEY_PACKETS = pow(2, 40)
 
+        # Ugly hack for Solaris as default shell is not bash and some commands
+        # (like 'test') not work ...
+        shell = self.execute('echo $0')[1]
+        if self.type == 'sunos' and 'bash' not in shell:
+            self.set_control('shell', 'bash')
+
 
     def disconnect(self):
         self._conn.close()
