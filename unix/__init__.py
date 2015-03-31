@@ -13,6 +13,7 @@ from unix._path import Path as _Path
 from unix._remote import Remote as _Remote
 from unix._users import Users as _Users
 from unix._groups import Groups as _Groups
+from unix._path import escape as escape_path
 
 #
 # Logs.
@@ -216,7 +217,7 @@ class Host(object):
 
 
     def touch(self, *paths, **options):
-        paths = [format_path(path) for path in paths]
+        paths = [escape_path(path) for path in paths]
         return self.execute('touch', *paths, **options)
 
 
@@ -224,7 +225,7 @@ class Host(object):
         """Create a directory. *args and **options contains options that can be
         passed to the command. **options can contain an additionnal key
         *INTERACTIVE* that will be pass to ``execute`` function."""
-        paths = [format_path(path) for path in paths]
+        paths = [escape_path(path) for path in paths]
         return self.execute('mkdir', *paths, **options)
 
 
@@ -233,32 +234,32 @@ class Host(object):
         contains options that can be passed to the command. **options can
         contain an additionnal key *INTERACTIVE* that will be pass to
         ``execute`` function."""
-        paths = [format_path(path) for path in paths]
+        paths = [escape_path(path) for path in paths]
         return self.execute('cp', *paths, **options)
 
 
     def move(self, *paths, **options):
-        paths = [format_path(path) for path in paths]
+        paths = [escape_path(path) for path in paths]
         return self.execute('mv', *paths, **options)
 
 
     def remove(self, *paths, **options):
-        paths = [format_path(path) for path in paths]
+        paths = [escape_path(path) for path in paths]
         return self.execute('rm', *paths, **options)
 
 
     def chmod(self, permissions, *paths, **options):
-        paths = [format_path(path) for path in paths]
+        paths = [escape_path(path) for path in paths]
         return self.execute('chmod', permissions, *paths, **options)
 
 
     def chown(self, owner, *paths, **options):
-        paths = [format_path(path) for path in paths]
+        paths = [escape_path(path) for path in paths]
         return self.execute('chown', owner, *paths, **options)
 
 
     def chgrp(self, group, *paths, **options):
-        paths = [format_path(path) for path in paths]
+        paths = [escape_path(path) for path in paths]
         return self.execute('chgrp', group, *path, **options)
 
 
@@ -270,12 +271,12 @@ class Host(object):
 
 
     def mount(self, device, mount_point, **options):
-        mount_point = format_path(mount_point)
+        mount_point = escape_path(mount_point)
         return self.execute('mount', device, mount_point, **options)
 
 
     def umount(self, mount_point, **options):
-        mount_point = format_path(mount_point)
+        mount_point = escape_path(mount_point)
         return self.execute('umount', mount_point, **options)
 
 
