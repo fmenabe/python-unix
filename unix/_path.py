@@ -60,3 +60,8 @@ class Path(object):
     def permissions(self, path):
         stdout = self._host.list(path, d=True, l=True)
         return re.split('\s+', stdout.splitlines()[0])[0]
+
+
+    def username(self, path):
+        stdout = self._host.list(path, d=True, l=True)
+        return re.split('\s+', stdout.splitlines()[0])[2]
