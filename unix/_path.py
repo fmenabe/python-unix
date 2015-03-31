@@ -65,3 +65,8 @@ class Path(object):
     def username(self, path):
         stdout = self._host.list(path, d=True, l=True)
         return re.split('\s+', stdout.splitlines()[0])[2]
+
+
+    def groupname(self, path):
+        stdout = self._host.list(path, d=True, l=True)
+        return re.split('\s+', stdout.splitlines()[0])[3]
