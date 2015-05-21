@@ -98,18 +98,19 @@ def table_line(sizes, columns, colors=[], borders_color=None, indent=1):
         for line in value_lines:
             # Split line on word.
             line = line.split()
-
-            # Append words until it exceed column size.
-            cur_line = ''
+            cur_line = ' '
             while line:
                 word = line.pop(0)
-                if (len(cur_line) + 1 + len(word)) > size:
-                    cur_line += ' ' * (size - (len(cur_line) - 2))
-                    column_lines.append(cur_line)
-                    cur_line = ' ' * indent
-                cur_line += ' ' + word
-            cur_line += ' ' * (size - (len(cur_line) - 2))
-            column_lines.append(cur_line)
+                new_line = cur_line + word + ' '
+                if len(new_line) >= size + 2:
+                    new_line += ' ' * (size + 2 - len(new_line))
+                    column_lines.append(new_line)
+                    cur_line = ' ' * indent + ' '
+                else:
+                    cur_line = new_line
+            if cur_line.strip():
+                cur_line += ' ' * (size + 2 - len(cur_line))
+                column_lines.append(cur_line)
 
         # Add column lines.
         for line in column_lines:
