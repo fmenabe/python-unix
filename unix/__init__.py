@@ -47,6 +47,7 @@ def isvalid(host):
 _CONTROLS = {'options_place': 'before',
              'locale': 'en_US.utf-8',
              'decode': 'utf-8',
+             'envs': {},
              'timeout': 0,
              'shell': None}
 
@@ -161,6 +162,7 @@ class Host(object):
     def _format_command(self, cmd, args, options):
         command = ['%s=%s' % (var, self._locale)
                    for var in ('LC_ALL', 'LANGUAGE', 'LANG')]
+        command.extend('%s=%s' % (var, value) for var, value in self._envs.items())
         command.append(cmd)
         interactive = options.pop('INTERACTIVE', False)
         stdin = options.pop('STDIN', None)
