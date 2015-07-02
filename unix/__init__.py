@@ -464,6 +464,7 @@ class Remote(Host):
 
 
     def connect(self, host, **kwargs):
+        keepalive = kwargs.pop('keepalive', 0)
         self.forward_agent = kwargs.pop('forward_agent', True)
         self.username = kwargs.pop('username', 'root')
 
@@ -495,6 +496,9 @@ class Remote(Host):
             self._conn.connect(self.ip, **params)
         except Exception as err:
             raise UnixError(err)
+
+        # Add keepalive on connection.
+        self._conn.get_transport().set_keepalive(keepalive)
 
         # Optimizations for file transfert
         # (see https://github.com/paramiko/paramiko/issues/175)
