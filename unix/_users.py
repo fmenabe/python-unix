@@ -40,15 +40,15 @@ class Users(object):
 
 
     def add(self, user, **kwargs):
-        self._host.isroot('useradd')
+#        self._host.isroot('useradd')
         return self._host.execute('useradd', user, **kwargs)
 
 
     def delete(self, user, **kwargs):
-        self._host.isroot('userdel')
+#        self._host.isroot('userdel')
         return self._host.execute('userdel', user, **kwargs)
 
 
     def update(self, user, **kwargs):
-        self._host.isroot('usermod')
+#        self._host.isroot('usermod')
         return self._host.execute('usermod', user, **kwargs)
