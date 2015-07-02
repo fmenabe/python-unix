@@ -4,6 +4,7 @@ import sys
 import time
 import socket
 import select
+import signal
 import subprocess
 import paramiko
 import weakref
@@ -46,6 +47,7 @@ def isvalid(host):
 _CONTROLS = {'options_place': 'before',
              'locale': 'en_US.utf-8',
              'decode': 'utf-8',
+             'timeout': 0,
              'shell': None}
 
 # Errors.
@@ -69,6 +71,27 @@ _IPV6 = re.compile(r'^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
 class UnixError(Exception):
     pass
 
+
+class TimeoutError(Exception):
+    pass
+
+
+class timeout:
+    def __init__(self, seconds=1, error_message='Timeout'):
+        self.seconds = seconds
+        self.error_message = error_message
+
+    def handle_timeout(self, signum, frame):
+        raise TimeoutError(self.error_message)
+
+    def __enter__(self):
+        if self.seconds != 0:
+            signal.signal(signal.SIGALRM, self.handle_timeout)
+            signal.alarm(self.seconds)
+
+    def __exit__(self, type, value, traceback):
+        if self.seconds != 0:
+            signal.alarm(0)
 
 #
 # Abstract class for managing a host.
@@ -318,27 +341,28 @@ class Local(Host):
         command is put in *return_code* attribut."""
         command, interactive = self._format_command(command, args, options)
 
-        if interactive:
-            try:
-                self.return_code = subprocess.call(command,
-                                                   shell=True,
-                                                   stderr=subprocess.STDOUT)
-                return [True if self.return_code == 0 else False, u'', u'']
-            except subprocess.CalledProcessError as err:
-                return [False, u'', err]
-        else:
-            try:
-                obj = subprocess.Popen(command,
-                                       shell=True,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-                stdout, stderr = obj.communicate()
-                self.return_code = obj.returncode
-                return [True if self.return_code == 0 else False,
-                        stdout.decode(self._decode) if self._decode else stdout,
-                        stderr.decode(self._decode) if self._decode else stderr]
-            except OSError as err:
-                return [False, u'', err]
+        with timeout(self._timeout):
+            if interactive:
+                try:
+                    self.return_code = subprocess.call(command,
+                                                       shell=True,
+                                                       stderr=subprocess.STDOUT)
+                    return [True if self.return_code == 0 else False, u'', u'']
+                except subprocess.CalledProcessError as err:
+                    return [False, u'', err]
+            else:
+                try:
+                    obj = subprocess.Popen(command,
+                                           shell=True,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+                    stdout, stderr = obj.communicate()
+                    self.return_code = obj.returncode
+                    return [True if self.return_code == 0 else False,
+                            stdout.decode(self._decode) if self._decode else stdout,
+                            stderr.decode(self._decode) if self._decode else stderr]
+                except OSError as err:
+                    return [False, u'', err]
 
 
     def open(self, filepath, mode='r'):
@@ -498,53 +522,57 @@ class Remote(Host):
     def execute(self, command, *args, **options):
         self.is_connected()
 
+        get_pty = options.pop('TTY', False)
         command, interactive = self._format_command(command, args, options)
 
         chan = self._conn.get_transport().open_session()
+        if get_pty:
+            chan.get_pty()
         forward = (paramiko.agent.AgentRequestHandler(chan)
                    if self.forward_agent
                    else None)
 
-        if interactive:
-            chan.settimeout(0.0)
-            chan.exec_command(command)
-            while True:
-                rlist = select.select([chan, sys.stdin], [], [])[0]
-                if chan in rlist:
-                    try:
-                        stdout = chan.recv(1024)
-                        if len(stdout) == 0:
-                            break
-                        sys.stdout.write(stdout.decode())
-                        sys.stdout.flush()
-                    except socket.timeout:
-                        pass
-                if sys.stdin in rlist:
-                    stdin = ''
-                    while True:
-                        char = sys.stdin.read(1)
-                        stdin += char
-                        if len(char) == 0 or char == '\n':
-                            break
-                    chan.send(stdin)
-                # If no wait, the process loop as he can, reading the
-                # channel! Waiting 0.1 seconds avoids using a processor at
-                # 100% for nothing.
-                time.sleep(0.1)
+        with timeout(self._timeout):
+            if interactive:
+                chan.settimeout(0.0)
+                chan.exec_command(command)
+                while True:
+                    rlist = select.select([chan, sys.stdin], [], [])[0]
+                    if chan in rlist:
+                        try:
+                            stdout = chan.recv(1024)
+                            if len(stdout) == 0:
+                                break
+                            sys.stdout.write(stdout.decode())
+                            sys.stdout.flush()
+                        except socket.timeout:
+                            pass
+                    if sys.stdin in rlist:
+                        stdin = ''
+                        while True:
+                            char = sys.stdin.read(1)
+                            stdin += char
+                            if len(char) == 0 or char == '\n':
+                                break
+                        chan.send(stdin)
+                    # If no wait, the process loop as he can, reading the
+                    # channel! Waiting 0.1 seconds avoids using a processor at
+                    # 100% for nothing.
+                    time.sleep(0.1)
 
-            self.return_code = chan.recv_exit_status()
-            stderr = chan.makefile_stderr('rb', -1).read()
-            if stderr:
-                print(stderr.decode())
-            return [True if self.return_code == 0 else False, u'', u'']
-        else:
-            chan.exec_command(command)
-            self.return_code = chan.recv_exit_status()
-            stdout = chan.makefile('rb', -1).read()
-            stderr = chan.makefile_stderr('rb', -1).read()
-            return [True if self.return_code == 0 else False,
-                    stdout.decode(self._decode) if self._decode else stdout,
-                    stderr.decode(self._decode) if self._decode else stderr]
+                self.return_code = chan.recv_exit_status()
+                stderr = chan.makefile_stderr('rb', -1).read()
+                if stderr:
+                    print(stderr.decode())
+                return [True if self.return_code == 0 else False, u'', u'']
+            else:
+                chan.exec_command(command)
+                self.return_code = chan.recv_exit_status()
+                stdout = chan.makefile('rb', -1).read()
+                stderr = chan.makefile_stderr('rb', -1).read()
+                return [True if self.return_code == 0 else False,
+                        stdout.decode(self._decode) if self._decode else stdout,
+                        stderr.decode(self._decode) if self._decode else stderr]
 
         if forward:
             forward.close()
@@ -567,17 +595,18 @@ class Remote(Host):
 
         prev_size = sftp.stat(filepath).st_size
         while 1:
-            cur_size = sftp.stat(filepath).st_size
-            # File has been rotate.
-            if cur_size < prev_size:
-                with self.open(filepath) as fhandler:
-                    for line in fhandler.read().splitlines():
-                        yield line.decode()
-            else:
-                with self.open(filepath) as fhandler:
-                    fhandler.seek(prev_size, 0)
-                    for line in fhandler.read().splitlines():
-                        yield line.decode()
-            prev_size = cur_size
-            time.sleep(delta)
+            with timeout(self._timeout):
+                cur_size = sftp.stat(filepath).st_size
 
+                # File has been rotate.
+                if cur_size < prev_size:
+                    with self.open(filepath) as fhandler:
+                        for line in fhandler.read().splitlines():
+                            yield line.decode()
+                else:
+                    with self.open(filepath) as fhandler:
+                        fhandler.seek(prev_size, 0)
+                        for line in fhandler.read().splitlines():
+                            yield line.decode()
+                prev_size = cur_size
+            time.sleep(delta)
