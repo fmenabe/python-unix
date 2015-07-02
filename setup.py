@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
     name='unix',
-    version='0.1',
+    version='1.0',
     author='François Ménabé',
     author_email='francois.menabe@gmail.com',
     download_url="https://github.com/fmenabe/python-unix",
