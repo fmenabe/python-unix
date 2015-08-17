@@ -274,14 +274,16 @@ def Chroot(host, root):
 
         def chroot(self):
             for (fs, opts) in _FILESYSTEMS:
-                status, _, stderr = host.mount(fs, os.path.join(root, fs), **opts)
+                mount_point = os.path.join(root, fs[1:] if fs.startswith('/') else fs)
+                status, _, stderr = host.mount(fs, mount_point, **opts)
                 if not status:
                     raise ChrootError("unable to mount '%s': %s" % (fs, stderr))
 
 
         def unchroot(self):
-            for fs in _FILESYSTEMS:
-                status, _, stderr = host.umount(os.path.join(root, fs[0]))
+            for (fs, _) in _FILESYSTEMS:
+                mount_point = os.path.join(root, fs[1:] if fs.startswith('/') else fs)
+                status, _, stderr = host.umount(mount_point)
                 if not status:
                     raise ChrootError("unable to umount '%s': %s" % (fs, stderr))
 
