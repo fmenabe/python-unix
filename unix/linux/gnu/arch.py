@@ -2,6 +2,8 @@
 
 import sys
 import unix
+import weakref
+from unix.linux._services import Systemd
 from .. import Linux, Chroot, LinuxError
 
 _HOSTNAMEFILE = '/etc/hostname'
@@ -35,5 +37,9 @@ def Arch(host, force=False):
         def hostname(self, value):
             with self.open(_HOSTNAMEFILE, 'w') as fhandler:
                 fhandler.write(value)
+
+        @property
+        def services(self):
+            return Systemd(weakref.ref(self)())
 
     return ArchHost()

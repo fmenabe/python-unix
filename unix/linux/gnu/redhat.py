@@ -3,7 +3,9 @@
 import re
 import os
 import unix
+import weakref
 from .. import Linux, Chroot, LinuxError
+from unix.linux._services import Initd, Upstart, Systemd
 
 DISTRIBS = ('RedHat', 'CentOS')
 
@@ -50,5 +52,16 @@ def RedHat(host, force=False):
                                  fhandler.read())
             with self.open(_NETFILE, 'w') as fhandler:
                 fhandler.write(content)
+
+        @property
+        def services(self):
+            major_version = int(self.distrib[1][0])
+            if major_version <= 5:
+                service_handler = Initd
+            elif major_version == 6:
+                service_handler = Upstart
+            elif major_version >= 7:
+                service_handler = Systemd
+            return service_handler(weakref.ref(self)())
 
     return RedHatHost()

@@ -5,6 +5,7 @@ import weakref
 import unix
 import unix.linux as linux
 from .. import Linux, Chroot, LinuxError
+from unix.linux._services import Initd, Upstart, Systemd
 
 DISTRIBS = ('Debian', 'Ubuntu')
 
@@ -50,6 +51,17 @@ def Debian(host, force=False):
         @property
         def network(self):
             return _Network(weakref.ref(self)())
+
+        @property
+        def services(self):
+            major_version = int(self.distrib[1][0])
+            if major_version <= 5:
+                service_handler = Initd
+            elif 6 <= major_version <= 7:
+                service_handler = Upstart
+            elif major_version >= 8:
+                service_handler = Systemd
+            return service_handler(weakref.ref(self)())
 
     return DebianHost()
 
