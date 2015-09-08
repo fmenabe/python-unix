@@ -45,3 +45,15 @@ for func, power in FUNCTIONS.items():
     setattr(sys.modules[__name__],
             func,
             lambda value, power=power, si=False, toint=True: convert(value, power, si, toint))
+
+UNITS = ('b', 'kb', 'mb', 'gb', 'tb', 'pb')
+def human(size, from_unit='kb', si=False, fmt='%.0f'):
+    size = str(size)
+    try:
+        to_unit = UNITS[UNITS.index(from_unit) + (len(size) % 3 + 1)]
+    except IndexError:
+        to_unit = UNITS[-1]
+    func = '%s2%s' % (from_unit, to_unit)
+    new_size = getattr(sys.modules[__name__], func)(size, si=si, toint=False)
+    fmt += '%s'
+    return fmt % (new_size, to_unit[0].upper())
