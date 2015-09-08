@@ -53,6 +53,10 @@ def Debian(host, force=False):
             return _Network(weakref.ref(self)())
 
         @property
+        def apt(self):
+            return _APT(weakref.ref(self)())
+
+        @property
         def services(self):
             major_version = int(self.distrib[1][0])
             if major_version <= 5:
@@ -110,3 +114,36 @@ class _Network:
         except OSError as err:
             return [False, u'', err]
         return [True, u'', u'']
+
+
+class _APT:
+    ENVS = {'DEBIAN_FRONTEND': 'noninteractive'}
+    def __init__(self, host):
+        self._host = host
+
+    def add_ppa(self, name, uri, distribution, *components, **options):
+        line = ['deb']
+        if options:
+            line.extend('%s=%s' %  (param, value)
+                        for param, value in options.items())
+        line.extend([uri, distribution])
+        line.extend(components)
+
+        filepath = os.path.join('/etc/apt/sources.list.d', '%s.list' % name)
+        with self._host.open(filepath, 'w') as fhandler:
+            fhandler.write(' '.join(line))
+
+    def add_ppa_key(self, url):
+        return self._host.execute('wget --quiet -O - %s | apt-key add -' % url)
+
+    def update(self):
+        with self._host.set_controls(envs=self.ENVS):
+            return self._host.execute('apt-get', 'update')
+
+    def install(self, *packages, **opts):
+        with self._host.set_controls(envs=self.ENVS):
+            return self._host.execute('apt-get', 'install', *packages, **opts)
+
+    def dist_upgrade(self, **opts):
+        with self._host.set_controls(envs=self.ENVS):
+            return self._host.execute('apt-get', 'dist-upgrade', **opts)
