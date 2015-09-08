@@ -23,7 +23,6 @@ class Conf:
     def __init__(self, host):
         self._host = host
 
-
     def set_hosts(self, ip, hostname, domain):
         try:
             with self._host.open('/etc/hosts', 'w') as fhandler:
@@ -33,7 +32,6 @@ class Conf:
             return [True, u'', u'']
         except OSError as err:
             return [False, u'', err]
-
 
     def set_password(self, username, password):
         # Hash password.
@@ -64,7 +62,6 @@ class Conf:
             return [True, u'', u'']
         except OSError as err:
             return [False, u'', err]
-
 
     def gen_ssh_keys(self, algos=['rsa', 'dsa']):
         keys = [os.path.join(_SSH_DIR, filename)

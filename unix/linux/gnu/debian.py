@@ -34,27 +34,22 @@ def Debian(host, force=False):
             host.__class__.__init__(self, **kwargs)
             self.__dict__.update(host.__dict__)
 
-
         def list_packages(self):
             return self.execute('dpkg -l')
-
 
         @property
         def hostname(self):
             with self.open(_HOSTNAMEFILE) as fhandler:
                 return fhandler.read().decode().strip()
 
-
         @hostname.setter
         def hostname(self, value):
             with self.open(_HOSTNAMEFILE, 'w') as fhandler:
                 fhandler.write(value)
 
-
         @property
         def network(self):
             return _Network(weakref.ref(self)())
-
 
     return DebianHost()
 
@@ -62,7 +57,6 @@ def Debian(host, force=False):
 class _Network:
     def __init__(self, host):
         self._host = host
-
 
     def configure(self, interfaces):
         distrib, version = self._host.distrib[0:2]

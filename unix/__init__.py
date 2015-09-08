@@ -30,10 +30,8 @@ def instances(host):
     return list(reversed([elt.__name__.replace('Host', '')
                           for elt in host.__class__.mro()[:-2]]))
 
-
 def ishost(host, value):
     return True if value in instances(host) else False
-
 
 def isvalid(host):
     if instances(host)[0] not in ('Local', 'Remote'):
@@ -73,10 +71,8 @@ _IPV6 = re.compile(r'^[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}:'
 class UnixError(Exception):
     pass
 
-
 class TimeoutError(Exception):
     pass
-
 
 class timeout:
     def __init__(self, seconds=1, error_message='Timeout'):
@@ -95,6 +91,7 @@ class timeout:
         if self.seconds != 0:
             signal.alarm(0)
 
+
 #
 # Abstract class for managing a host.
 #
@@ -106,48 +103,39 @@ class Host(object):
         for control, value in _CONTROLS.items():
             setattr(self, '_%s' % control, value)
 
-
     @property
     def path(self):
         return _Path(weakref.ref(self)())
-
 
     @property
     def remote(self):
         return _Remote(weakref.ref(self)())
 
-
     @property
     def users(self):
         return _Users(weakref.ref(self)())
-
 
     @property
     def groups(self):
         return _Groups(weakref.ref(self)())
 
-
     @property
     def processes(self):
         return Processes(weakref.ref(self)())
 
-
     @property
     def controls(self):
         return {control: getattr(self, '_%s' % control) for control in _CONTROLS}
-
 
     def get_control(self, control):
         if control not in _CONTROLS:
             raise UnixError("invalid control '%s'" % control)
         return getattr(self, '_%s' % control)
 
-
     def set_control(self, control, value):
         if control not in _CONTROLS:
             raise UnixError("invalid control '%s'" % control)
         setattr(self, '_%s' % control, value)
-
 
     @contextmanager
     def set_controls(self, **controls):
@@ -160,7 +148,6 @@ class Host(object):
         finally:
             for control, value in cur_controls.items():
                 self.set_control(control, value)
-
 
     def _format_command(self, cmd, args, options):
         command = ['%s=%s' % (var, self._locale)
@@ -199,10 +186,8 @@ class Host(object):
         logger.debug('[execute] %s' % command)
         return command, interactive
 
-
     def execute(self):
         raise NotImplementedError(_HOST_CLASS_ERR)
-
 
     @property
     def type(self):
@@ -210,25 +195,21 @@ class Host(object):
         ``uname -s`` command."""
         return self.execute('uname', s=True)[1].splitlines()[0].lower()
 
-
     @property
     def arch(self):
         """Property that return the architecture of the operating system by
         executing ``uname -m`` command."""
         return self.execute('uname', m=True)[1].splitlines()[0]
 
-
     @property
     def hostname(self):
         return self.execute('hostname')[1].splitlines()[0]
-
 
     def list(self, path, **opts):
         status, stdout, stderr = self.execute('ls', escape_path(path), **opts)
         if not status:
             raise OSError(stderr)
         return stdout
-
 
     def listdir(self, path):
         """List files in a directory.
@@ -247,11 +228,9 @@ class Host(object):
 
         return self.list(path).splitlines()
 
-
     def touch(self, *paths, **options):
         paths = [escape_path(path) for path in paths]
         return self.execute('touch', *paths, **options)
-
 
     def mkdir(self, *paths, **options):
         """Create a directory. *args and **options contains options that can be
@@ -259,7 +238,6 @@ class Host(object):
         *INTERACTIVE* that will be pass to ``execute`` function."""
         paths = [escape_path(path) for path in paths]
         return self.execute('mkdir', *paths, **options)
-
 
     def copy(self, *paths, **options):
         """Copy **src** file or directory to **dst**. *args and **options
@@ -269,31 +247,25 @@ class Host(object):
         paths = [escape_path(path) for path in paths]
         return self.execute('cp', *paths, **options)
 
-
     def move(self, *paths, **options):
         paths = [escape_path(path) for path in paths]
         return self.execute('mv', *paths, **options)
-
 
     def remove(self, *paths, **options):
         paths = [escape_path(path) for path in paths]
         return self.execute('rm', *paths, **options)
 
-
     def chmod(self, permissions, *paths, **options):
         paths = [escape_path(path) for path in paths]
         return self.execute('chmod', permissions, *paths, **options)
-
 
     def chown(self, owner, *paths, **options):
         paths = [escape_path(path) for path in paths]
         return self.execute('chown', owner, *paths, **options)
 
-
     def chgrp(self, group, *paths, **options):
         paths = [escape_path(path) for path in paths]
         return self.execute('chgrp', group, *path, **options)
-
 
     def which(self, command, **options):
         try:
@@ -301,26 +273,21 @@ class Host(object):
         except IndexError:
             raise UnixError("which: unable to find command '%s'" % command)
 
-
     def read(self, filepath):
         with self.open(filepath) as fhandler:
             return fhandler.read().decode()
-
 
     def write(self, filepath, content):
         with self.open(filepath, 'w') as fhandler:
             fhandler.write(content)
 
-
     def mount(self, device, mount_point, **options):
         mount_point = escape_path(mount_point)
         return self.execute('mount', device, mount_point, **options)
 
-
     def umount(self, mount_point, **options):
         mount_point = escape_path(mount_point)
         return self.execute('umount', mount_point, **options)
-
 
     @contextmanager
     def mountfs(self, device, mount_point, **options):
@@ -329,7 +296,6 @@ class Host(object):
             yield None
         finally:
             self.umount(mount_point)
-
 
     def replace(self, filepath, pattern, replacement, backup=None):
         with self.open(filepath) as fhandler:
@@ -350,7 +316,6 @@ class Local(Host):
     def __init__(self):
         Host.__init__(self)
 
-
     @staticmethod
     def clone(host):
         new_host = Local()
@@ -358,15 +323,12 @@ class Local(Host):
         new_host.__dict__.update(host.controls)
         return new_host
 
-
     @property
     def username(self):
         return self.users.username(os.getuid())
 
-
     def is_connected(self):
         pass
-
 
     def execute(self, command, *args, **options):
         """Function that execute a command using english utf8 locale. The output
@@ -401,14 +363,12 @@ class Local(Host):
                 except OSError as err:
                     return [False, u'', err]
 
-
     def open(self, filepath, mode='r'):
         # For compatibility with SFTPClient object, the file is always open
         # in binary mode.
         if 'b' not in mode:
             mode += 'b'
         return open(filepath, mode)
-
 
     def tail(self, filepath, delta=1):
         prev_size = os.stat(filepath).st_size
@@ -436,12 +396,10 @@ class connect(object):
         self.hostname = host
         self.options = kwargs
 
-
     def __enter__(self):
         self._host = Remote()
         self._host.connect(self.hostname, **self.options)
         return self._host
-
 
     def __exit__(self, type, value, traceback):
         self._host.disconnect()
@@ -461,7 +419,6 @@ class Remote(Host):
         self.username = None
         self._conn = None
 
-
     @staticmethod
     def clone(host):
         new_host = Remote()
@@ -473,20 +430,17 @@ class Remote(Host):
             new_host.__dict__.update(_conn=host._conn)
         return new_host
 
-
     def __ipv4(self):
         try:
             return socket.getaddrinfo(self.fqdn, 22, 2, 1, 6)[0][4][0]
         except socket.gaierror:
             return None
 
-
     def __ipv6(self):
         try:
             return socket.getaddrinfo(self.fqdn, 22, 10, 1, 6)[0][4][0]
         except socket.gaierror:
             return None
-
 
     def __fqdn(self):
         try:
@@ -498,7 +452,6 @@ class Remote(Host):
                 return None
         except socket.herror:
             return None
-
 
     def connect(self, host, **kwargs):
         keepalive = kwargs.pop('keepalive', 0)
@@ -550,15 +503,12 @@ class Remote(Host):
         if self.type == 'sunos' and 'bash' not in shell:
             self.set_control('shell', 'bash')
 
-
     def disconnect(self):
         self._conn.close()
-
 
     def is_connected(self):
         if self._conn is None or not self._conn.get_transport():
             raise UnixError(_NOT_CONNECTED_ERR)
-
 
     def execute(self, command, *args, **options):
         self.is_connected()
@@ -619,7 +569,6 @@ class Remote(Host):
             forward.close()
         chan.close()
 
-
     def open(self, filepath, mode='r'):
         self.is_connected()
         sftp = paramiko.SFTPClient.from_transport(self._conn.get_transport())
@@ -629,7 +578,6 @@ class Remote(Host):
         if 'b' not in mode:
             mode += 'b'
         return sftp.open(filepath, mode)
-
 
     def tail(self, filepath, delta=1):
         sftp = paramiko.SFTPClient.from_transport(self._conn.get_transport())

@@ -16,14 +16,12 @@ class Remote(object):
     def __init__(self, host):
         self._host = host
 
-
     def _format_ssh_arg(self, user, host, filepath):
         return (('%s@' % user if (user and host) else '')
                 + (host or '')
                 + (('%s%s' % (':' if host else '', filepath))
                    if filepath
                    else ''))
-
 
     def scp(self, src_file, dst_file, **kwargs):
         # ssh_options (-o) can be passed many time so this must be a list.
@@ -57,7 +55,6 @@ class Remote(object):
 
         return self._host.execute('scp', src, dst, **kwargs)
 
-
     def rsync(self, src_file, dst_file, **kwargs):
         src = self._format_ssh_arg(kwargs.pop('src_user', ''),
                                    kwargs.pop('src_host', ''),
@@ -67,7 +64,6 @@ class Remote(object):
                                    dst_file)
 
         return self._host.execute('rsync', src, dst, **kwargs)
-
 
     def tar(self, src_file, dst_file, src_opts={}, dst_opts={}, **kwargs):
         src_ssh = '%s' % self._format_ssh_arg(kwargs.pop('src_user', ''),
@@ -96,7 +92,6 @@ class Remote(object):
         cmd.extend(dst_cmd)
         return self._host.execute(*cmd, interactive=interactive)
 
-
     def get(self, rmthost, rmtpath, localpath, **kwargs):
         if unix.ishost(self._host, 'Remote') and rmthost == 'localhost':
             return unix.Local().remote.put(rmtpath,
@@ -115,7 +110,6 @@ class Remote(object):
             return getattr(self, method)(*args, **kwargs)
         except AttributeError:
             return [False, [], ["unknown copy method '%s'" % method]]
-
 
     def put(self, localpath, rmthost, rmtpath, **kwargs):
         if unix.ishost(self._host, 'Remote') and rmthost == 'localhost':

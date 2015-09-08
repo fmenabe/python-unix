@@ -19,7 +19,6 @@ def CentOS(host, root='', force=False):
     if host.distrib[0] != 'CentOS' and not force:
         raise LinuxError('invalid distrib')
 
-
     class CentOSHost(host.__class__):
         def __init__(self):
             host.__class__.__init__(self)

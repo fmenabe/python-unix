@@ -20,19 +20,16 @@ def Arch(host, force=False):
     if host.distrib[0] != 'Arch' and not force:
         raise LinuxError('invalid distrib')
 
-
     class ArchHost(host.__class__):
         def __init__(self):
             kwargs = {'root': root} if root else {}
             host.__class__.__init__(self, **kwargs)
             self.__dict__.update(host.__dict__)
 
-
         @property
         def hostname(self):
             with self.open(_HOSTNAMEFILE) as fhandler:
                 return fhandler.read().decode().strip()
-
 
         @hostname.setter
         def hostname(self, value):

@@ -19,7 +19,6 @@ def Ubuntu(host, force=False):
     if host.distrib[0] != 'Ubuntu' and not force:
         raise LinuxError('invalid distrib')
 
-
     class UbuntuHost(host.__class__):
         def __init__(self):
 #            kwargs = {'root': root} if root else {}

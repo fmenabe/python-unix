@@ -172,35 +172,28 @@ def Linux(host):
             host.__class__.__init__(self)
             self.__dict__.update(host.__dict__)
 
-
         @property
         def distrib(self):
             return distribution(self)
-
 
         @property
         def chrooted(self):
             return False
 
-
         @property
         def conf(self):
             return _Conf(weakref.ref(self)())
-
 
         @property
         def memory(self):
             return _Memory(weakref.ref(self)())
 
-
         def stat(self, filepath):
             return _Stat(weakref.ref(self)(), filepath)
-
 
         @property
         def modules(self):
             return _Modules(weakref.ref(self)())
-
 
         def fstab(self, filepath='/etc/fstab'):
             filesystems = {}
@@ -213,7 +206,6 @@ def Linux(host):
                         for line in fhandler.read().splitlines()
                         if line and not line.decode().startswith('#')
                         for elts in [line.decode().split()]}
-
 
     return LinuxHost()
 
@@ -236,11 +228,9 @@ def Chroot(host, root):
             self.__dict__.update(host.__dict__)
             self.root = root
 
-
         @property
         def chrooted(self):
             return True
-
 
         def execute(self, cmd, *args, **kwargs):
             if self.root:
@@ -251,13 +241,11 @@ def Chroot(host, root):
             self.return_code = host.return_code
             return result
 
-
         def open(self, filepath, mode='r'):
             if self.root:
                 filepath = filepath[1:] if filepath.startswith('/') else filepath
                 filepath = os.path.join(self.root, filepath)
             return host.open(filepath, mode)
-
 
         @contextmanager
         def set_controls(self, **controls):
@@ -271,14 +259,12 @@ def Chroot(host, root):
                 for control, value in cur_controls.items():
                     host.set_control(control, value)
 
-
         def chroot(self):
             for (fs, opts) in _FILESYSTEMS:
                 mount_point = os.path.join(root, fs[1:] if fs.startswith('/') else fs)
                 status, _, stderr = host.mount(fs, mount_point, **opts)
                 if not status:
                     raise ChrootError("unable to mount '%s': %s" % (fs, stderr))
-
 
         def unchroot(self):
             for (fs, _) in _FILESYSTEMS:

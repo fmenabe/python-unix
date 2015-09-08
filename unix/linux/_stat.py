@@ -43,7 +43,6 @@ _MAP = dict(permissions_human=dict(fmt='A'),
             fs_blocksize=dict(fs=True, fmt='s', type=int))
 
 
-
 class StatError(Exception):
     pass
 
@@ -54,7 +53,6 @@ class Stat(object):
         self._filepath = unix.format_path(filepath)
         self._follow_links = follow_links
 
-
     def _execute(self, fmt, fs=False):
         cmd = ('stat', self._filepath)
         kwargs = dict(file_system=fs, dereference=self._follow_links)
@@ -62,7 +60,6 @@ class Stat(object):
         if not status:
             raise StatError(stderr)
         return stdout.strip()
-
 
     @property
     def permissions(self):

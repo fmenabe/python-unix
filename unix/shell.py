@@ -4,9 +4,11 @@ from __future__ import unicode_literals
 import sys
 import subprocess
 
+#
+# Exceptions.
+#
 class ShellError(Exception):
     pass
-
 
 class QuitOnError(Exception):
     pass
@@ -23,22 +25,18 @@ def flush(msg):
     sys.stdout.write(msg)
     sys.stdout.flush()
 
-
 def msg(msg, start=76):
     """Return a shell string beggining at the **start** column."""
     return '\033[%sG%s' % (start, msg)
-
 
 def ok(start=76):
     """Print the string 'OK' in green at the **start** column."""
     print('\033[%sG\033[32mOK\033[00m' % start)
 
-
 def warn(msg, start=76):
     """Print the string 'WARN' in orange at the **start** column and the string
     **msg** in the next lines."""
     print('\033[%sG\033[33mWARN\n%s\033[00m' % (start, msg))
-
 
 def fail(msg, quit=False, start=76):
     """Print the string 'FAIL' in red at the **start** column and the string
@@ -48,7 +46,6 @@ def fail(msg, quit=False, start=76):
     print('\033[%sG\033[31mFAIL\n%s\033[00m' % (start, msg))
     if quit:
         raise QuitOnError(msg)
-
 
 def status(result, quit=False, start=76):
     """Manage the result (status, stdout, stderr) of the execution of a command.
@@ -67,7 +64,6 @@ def status(result, quit=False, start=76):
 #
 colorize = lambda color, value: '\033[%s%s\033[00m' % (color, value)
 
-
 def table_border(columns, color=None):
     line = '+'
     for idx in range(0, len(columns)):
@@ -78,7 +74,6 @@ def table_border(columns, color=None):
     if color:
         line = '\033[%s%s\033[00m' % (color, line)
     print(line)
-
 
 def table_line(sizes, columns, colors=[], borders_color=None, indent=1):
     if len(sizes) != len(columns):

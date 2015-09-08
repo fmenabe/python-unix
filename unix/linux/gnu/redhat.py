@@ -30,10 +30,8 @@ def RedHat(host, force=False):
             host.__class__.__init__(self, **kwargs)
             self.__dict__.update(host.__dict__)
 
-
         def list_packages(self):
             return self.execute('dpkg -l')
-
 
         @property
         def hostname(self):
@@ -42,7 +40,6 @@ def RedHat(host, force=False):
                     attr, value = line.split('=')
                     if attr == 'HOSTNAME':
                         return value
-
 
         @hostname.setter
         def hostname(self, value):
