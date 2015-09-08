@@ -7,6 +7,8 @@ from unix.linux._conf import Conf as _Conf
 from unix.linux._memory import Memory as _Memory
 from unix.linux._stat import Stat as _Stat
 from unix.linux._modules import Modules as _Modules
+from unix.linux._sysctl import Sysctl as _Sysctl
+from unix.linux._fstab import Fstab as _Fstab
 
 
 #
@@ -194,6 +196,10 @@ def Linux(host):
         @property
         def modules(self):
             return _Modules(weakref.ref(self)())
+
+        @property
+        def sysctl(self):
+            return _Sysctl(weakref.ref(self)())
 
         @property
         def fstab(self):
