@@ -302,6 +302,16 @@ class Host(object):
             raise UnixError("which: unable to find command '%s'" % command)
 
 
+    def read(self, filepath):
+        with self.open(filepath) as fhandler:
+            return fhandler.read().decode()
+
+
+    def write(self, filepath, content):
+        with self.open(filepath, 'w') as fhandler:
+            fhandler.write(content)
+
+
     def mount(self, device, mount_point, **options):
         mount_point = escape_path(mount_point)
         return self.execute('mount', device, mount_point, **options)
