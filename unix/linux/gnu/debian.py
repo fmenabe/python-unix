@@ -101,7 +101,7 @@ class _Network:
                         for param in ('address', 'netmask', 'gateway'):
                             interface.pop(param, None)
                     conf.extend('    %s %s' % (attr, value)
-                                for attr, value in interface.items()
+                                for attr, value in sorted(interface.items())
                                 if value)
 
                     if split_files:
