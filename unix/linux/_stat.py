@@ -50,7 +50,7 @@ class StatError(Exception):
 class Stat(object):
     def __init__(self, host, filepath, follow_links=False):
         self._host = host
-        self._filepath = unix.format_path(filepath)
+        self._filepath = unix._path.escape(filepath)
         self._follow_links = follow_links
 
     def _execute(self, fmt, fs=False):
