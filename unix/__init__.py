@@ -322,6 +322,17 @@ class Host(object):
         return self.execute('umount', mount_point, **options)
 
 
+    def replace(self, filepath, pattern, replacement, backup=None):
+        with self.open(filepath) as fhandler:
+            new_content = re.sub(pattern, replacement, fhandler.read().decode())
+        if backup:
+            if not self.copy(filepath, '%s.%s' % (filepath, backup)):
+                return [False, '', 'unable to backup file']
+        with self.open(filepath, 'w') as fhandler:
+            fhandler.write(new_content)
+        return [True, '', '']
+
+
 #
 # Class for managing localhost (subprocess).
 #
