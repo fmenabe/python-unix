@@ -5,7 +5,7 @@ import os
 import unix
 import weakref
 from .. import Linux, Chroot, LinuxError
-from unix.linux._services import Initd, Upstart, Systemd
+from unix.linux.services import Initd, Upstart, Systemd
 
 DISTRIBS = ('RedHat', 'CentOS')
 

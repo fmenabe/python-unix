@@ -3,7 +3,7 @@
 import sys
 import unix
 import weakref
-from unix.linux._services import Systemd
+from unix.linux.services import Systemd
 from .. import Linux, Chroot, LinuxError
 
 _HOSTNAMEFILE = '/etc/hostname'

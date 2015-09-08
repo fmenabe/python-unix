@@ -9,12 +9,11 @@ import subprocess
 import paramiko
 import weakref
 from contextlib import contextmanager
-from unix._processes import Processes as _Processes
-from unix._path import Path as _Path
-from unix._remote import Remote as _Remote
-from unix._users import Users as _Users
-from unix._groups import Groups as _Groups
-from unix._path import escape as escape_path
+from unix.processes import Processes as _Processes
+from unix.path import Path as _Path, escape
+from unix.remote import Remote as _Remote
+from unix.users import Users as _Users
+from unix.groups import Groups as _Groups
 
 #
 # Logs.
@@ -121,7 +120,7 @@ class Host(object):
 
     @property
     def processes(self):
-        return Processes(weakref.ref(self)())
+        return _Processes(weakref.ref(self)())
 
     @property
     def controls(self):
@@ -206,7 +205,7 @@ class Host(object):
         return self.execute('hostname')[1].splitlines()[0]
 
     def list(self, path, **opts):
-        status, stdout, stderr = self.execute('ls', escape_path(path), **opts)
+        status, stdout, stderr = self.execute('ls', escape(path), **opts)
         if not status:
             raise OSError(stderr)
         return stdout
@@ -229,14 +228,14 @@ class Host(object):
         return self.list(path).splitlines()
 
     def touch(self, *paths, **options):
-        paths = [escape_path(path) for path in paths]
+        paths = [escape(path) for path in paths]
         return self.execute('touch', *paths, **options)
 
     def mkdir(self, *paths, **options):
         """Create a directory. *args and **options contains options that can be
         passed to the command. **options can contain an additionnal key
         *INTERACTIVE* that will be pass to ``execute`` function."""
-        paths = [escape_path(path) for path in paths]
+        paths = [escape(path) for path in paths]
         return self.execute('mkdir', *paths, **options)
 
     def copy(self, *paths, **options):
@@ -244,27 +243,27 @@ class Host(object):
         contains options that can be passed to the command. **options can
         contain an additionnal key *INTERACTIVE* that will be pass to
         ``execute`` function."""
-        paths = [escape_path(path) for path in paths]
+        paths = [escape(path) for path in paths]
         return self.execute('cp', *paths, **options)
 
     def move(self, *paths, **options):
-        paths = [escape_path(path) for path in paths]
+        paths = [escape(path) for path in paths]
         return self.execute('mv', *paths, **options)
 
     def remove(self, *paths, **options):
-        paths = [escape_path(path) for path in paths]
+        paths = [escape(path) for path in paths]
         return self.execute('rm', *paths, **options)
 
     def chmod(self, permissions, *paths, **options):
-        paths = [escape_path(path) for path in paths]
+        paths = [escape(path) for path in paths]
         return self.execute('chmod', permissions, *paths, **options)
 
     def chown(self, owner, *paths, **options):
-        paths = [escape_path(path) for path in paths]
+        paths = [escape(path) for path in paths]
         return self.execute('chown', owner, *paths, **options)
 
     def chgrp(self, group, *paths, **options):
-        paths = [escape_path(path) for path in paths]
+        paths = [escape(path) for path in paths]
         return self.execute('chgrp', group, *path, **options)
 
     def which(self, command, **options):
@@ -282,11 +281,11 @@ class Host(object):
             fhandler.write(content)
 
     def mount(self, device, mount_point, **options):
-        mount_point = escape_path(mount_point)
+        mount_point = escape(mount_point)
         return self.execute('mount', device, mount_point, **options)
 
     def umount(self, mount_point, **options):
-        mount_point = escape_path(mount_point)
+        mount_point = escape(mount_point)
         return self.execute('umount', mount_point, **options)
 
     @contextmanager

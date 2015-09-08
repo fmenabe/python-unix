@@ -4,7 +4,7 @@ import unix
 import weakref
 from .. import Linux, Chroot, LinuxError
 from .debian import Debian
-from unix.linux._services import Initd, Upstart, Systemd
+from unix.linux.services import Initd, Upstart, Systemd
 
 def Ubuntu(host, force=False):
     unix.isvalid(host)
