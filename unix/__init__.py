@@ -49,7 +49,8 @@ _CONTROLS = {'options_place': 'before',
              'decode': 'utf-8',
              'envs': {},
              'timeout': 0,
-             'shell': None}
+             'shell': None,
+             'su': None}
 
 # Errors.
 _HOST_CLASS_ERR = ("don't use 'Host' class directly, use 'Local' or "
@@ -143,6 +144,8 @@ class Host(object):
 
 
     def set_control(self, control, value):
+        if control not in _CONTROLS:
+            raise UnixError("invalid control '%s'" % control)
         setattr(self, '_%s' % control, value)
 
 
@@ -191,6 +194,8 @@ class Host(object):
         command = ' '.join(map(str, command))
         if self._shell:
             command = 'bash -c "%s"' % command.replace('"', '\\"')
+        if self._su:
+            command = 'su - %s -c "%s"' % (self._su, command.replace('"', '\\"'))
         logger.debug('[execute] %s' % command)
         return command, interactive
 
