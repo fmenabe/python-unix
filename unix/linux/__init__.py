@@ -195,17 +195,9 @@ def Linux(host):
         def modules(self):
             return _Modules(weakref.ref(self)())
 
-        def fstab(self, filepath='/etc/fstab'):
-            filesystems = {}
-            with self.open(filepath) as fhandler:
-                return {elts[1]: {'fs': elts[0],
-                                  'type': elts[2],
-                                  'options': elts[3],
-                                  'dump': elts[4],
-                                  'pass': elts[5]}
-                        for line in fhandler.read().splitlines()
-                        if line and not line.decode().startswith('#')
-                        for elts in [line.decode().split()]}
+        @property
+        def fstab(self):
+            return _Fstab(weakref.ref(self)())
 
     return LinuxHost()
 
