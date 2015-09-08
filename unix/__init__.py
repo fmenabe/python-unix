@@ -322,6 +322,15 @@ class Host(object):
         return self.execute('umount', mount_point, **options)
 
 
+    @contextmanager
+    def mountfs(self, device, mount_point, **options):
+        try:
+            self.mount(device, mount_point, **options)
+            yield None
+        finally:
+            self.umount(mount_point)
+
+
     def replace(self, filepath, pattern, replacement, backup=None):
         with self.open(filepath) as fhandler:
             new_content = re.sub(pattern, replacement, fhandler.read().decode())
