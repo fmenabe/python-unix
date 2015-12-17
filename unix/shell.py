@@ -62,7 +62,7 @@ def status(result, quit=False, start=76):
 #
 # Tables.
 #
-colorize = lambda color, value: '\033[%s%s\033[00m' % (color, value)
+colorize = lambda color, value: '\033[%sm%s\033[00m' % (color, value)
 
 def table_border(columns, color=None):
     line = '+'
@@ -72,7 +72,7 @@ def table_border(columns, color=None):
             line += '-'
         line += '+'
     if color:
-        line = '\033[%s%s\033[00m' % (color, line)
+        line = colorize(color, line)
     print(line)
 
 def table_line(sizes, columns, colors=[], borders_color=None, indent=1):
