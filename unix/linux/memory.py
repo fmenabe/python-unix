@@ -3,7 +3,8 @@ from unix.sizes import kb2b
 
 _MEMINFO = '/proc/meminfo'
 
-_PARAM_RE = re.compile('(([a-zA-Z0-9_]*)(\((\w*)\))?):\s+(\d*)(.*)?')
+_PARAM_RE = re.compile(r'^(?P<param>[a-zA-Z0-9_]*)(\((?P<anon>\w*)\))?:'
+                        '\s+(?P<value>\d*)(\s+(?P<unit>\w*))?$')
 
 class Memory(object):
     def __init__(self, host):
@@ -11,12 +12,12 @@ class Memory(object):
 
         with self._host.open(_MEMINFO) as fhandler:
             for line in fhandler.read().splitlines():
-                regex = _PARAM_RE.search(line.decode()).groups()
-                param = regex[1].lower()
-                if regex[3]:
-                    param = '%s_%s' % (param, regex[3])
+                regex = _PARAM_RE.search(line.decode()).groupdict()
+                param = regex['param'].lower()
                 if param.startswith('mem'):
                     param = param[3:]
+                if regex['anon']:
+                    param = '%s_%s' % (param, regex['anon'])
 
-                value = kb2b(regex[4], si=True) if regex[5] else regex[4]
+                value = kb2b(regex['value'], si=True) if regex['unit'] else regex['value']
                 setattr(self, param, value)
