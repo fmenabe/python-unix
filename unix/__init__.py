@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import time
+import shlex
 import socket
 import select
 import signal
@@ -149,6 +150,7 @@ class Host(object):
                 self.set_control(control, value)
 
     def _format_command(self, cmd, args, options):
+        args = [shlex.quote(arg) for arg in args]
         command = ['%s=%s' % (var, self._locale)
                    for var in ('LC_ALL', 'LANGUAGE', 'LANG')]
         command.extend('%s=%s' % (var, value) for var, value in self._envs.items())
@@ -179,9 +181,9 @@ class Host(object):
 
         command = ' '.join(map(str, command))
         if self._shell:
-            command = 'bash -c "%s"' % command.replace('"', '\\"')
+            command = '%s -c %s' % (self._shell, shlex.quote(command))
         if self._su:
-            command = 'su - %s -c "%s"' % (self._su, command.replace('"', '\\"'))
+            command = 'su - %s -c %s' % (self._su, shlex.quote(command))
         logger.debug('[execute] %s' % command)
         return command, interactive
 
