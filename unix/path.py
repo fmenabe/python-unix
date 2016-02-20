@@ -15,7 +15,10 @@ class Path(object):
 
     def exists(self, path):
         """Return the status of ``test -e`` command."""
-        status, _, stderr = self._host.execute('test', escape(path), e=True)
+        if (self._host._shell or self._host.default_shell) == 'sh':
+            status, _, stderr = self._host.execute('test', escape(path), r=True)
+        else:
+            status, _, stderr = self._host.execute('test', escape(path), e=True)
         if self._host.return_code not in (0, 1):
             raise unix.UnixError(stderr)
         return status

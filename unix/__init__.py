@@ -150,16 +150,32 @@ class Host(object):
                 self.set_control(control, value)
 
     def _format_command(self, cmd, args, options):
+        command = []
         args = [shlex.quote(arg) for arg in args]
-        command = ['%s=%s' % (var, self._locale)
-                   for var in ('LC_ALL', 'LANGUAGE', 'LANG')]
-        command.extend('%s=%s' % (var, value) for var, value in self._envs.items())
+
+        # Get environments variables (from 'locale' and 'envs' controls).
+        envs = ({var: self._locale for var in ('LC_ALL', 'LANGUAGE', 'LANG')}
+                if self._locale
+                else {})
+        envs.update(self._envs)
+
+        # For CSH shell, we need to declare environments variables with 'env' keyword.
+        if envs and (self._shell or self.default_shell) == 'csh':
+            command.append('env')
+        command.extend('%s=%s' % (var, value) for var, value in sorted(envs.items()))
+
+        # Add command to execute.
         command.append(cmd)
+
+        # Get specials options.
         interactive = options.pop('INTERACTIVE', False)
         stdin = options.pop('STDIN', None)
+
+        # Add arguments before options if 'options_place' control is set to 'after'.
         if self._options_place == 'after':
             command.extend([str(arg) for arg in args])
 
+        # Add options.
         for option, value in options.items():
             option = ('-%s' % option
                       if len(option) == 1
@@ -173,6 +189,7 @@ class Host(object):
             else:
                 command.append('%s %s' % (option, value))
 
+        # Add arguments now if 'options_place' control is set to 'before' (the default).
         if self._options_place == 'before':
             command.extend(args)
 
@@ -498,11 +515,10 @@ class Remote(Host):
         self._conn.get_transport().packetizer.REKEY_BYTES = pow(2, 40)
         self._conn.get_transport().packetizer.REKEY_PACKETS = pow(2, 40)
 
-        # Ugly hack for Solaris as default shell is not bash and some commands
-        # (like 'test') not work ...
-        shell = self.execute('echo $0')[1]
-        if self.type == 'sunos' and 'bash' not in shell:
-            self.set_control('shell', 'bash')
+        # Get the default shell (without using any environments variables as
+        # shells differ for managing them).
+        with self.set_controls(locale='', envs={}):
+            self.default_shell = self.execute('echo $0')[1].strip()
 
     def disconnect(self):
         self._conn.close()
