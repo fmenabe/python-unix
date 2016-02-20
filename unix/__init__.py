@@ -21,7 +21,10 @@ from unix.groups import Groups as _Groups
 #
 import logging
 logger = logging.getLogger('unix')
-
+logger.setLevel('NOTSET')
+cli_handler = logging.StreamHandler()
+cli_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+logger.addHandler(cli_handler)
 
 #
 # Utils functions.
