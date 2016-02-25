@@ -337,6 +337,12 @@ class Local(Host):
     def __init__(self):
         Host.__init__(self)
 
+        # Get the default shell (without using any environments variables as
+        # shells differ for managing them).
+        with self.set_controls(locale='', envs={}):
+            self.default_shell = self.execute('echo $0')[1].strip()
+
+
     @staticmethod
     def clone(host):
         new_host = Local()
