@@ -2,7 +2,6 @@ import os
 import re
 import sys
 import time
-import shlex
 import socket
 import select
 import signal
@@ -15,6 +14,11 @@ from unix.path import Path as _Path, escape
 from unix.remote import Remote as _Remote
 from unix.users import Users as _Users
 from unix.groups import Groups as _Groups
+
+if sys.version_info.major < 3:
+    from pipes import quote
+else:
+    from shlex import quote
 
 #
 # Logs.
@@ -154,7 +158,7 @@ class Host(object):
 
     def _format_command(self, cmd, args, options):
         command = []
-        args = [shlex.quote(arg) for arg in args]
+        args = [quote(arg) for arg in args]
 
         # Get environments variables (from 'locale' and 'envs' controls).
         envs = ({var: self._locale for var in ('LC_ALL', 'LANGUAGE', 'LANG')}
@@ -201,9 +205,9 @@ class Host(object):
 
         command = ' '.join(map(str, command))
         if self._shell:
-            command = '%s -c %s' % (self._shell, shlex.quote(command))
+            command = '%s -c %s' % (self._shell, quote(command))
         if self._su:
-            command = 'su - %s -c %s' % (self._su, shlex.quote(command))
+            command = 'su - %s -c %s' % (self._su, quote(command))
         logger.debug('[execute] %s' % command)
         return command, interactive
 
