@@ -162,19 +162,19 @@ class Host(object):
                 else {})
         envs.update(self._envs)
 
-        # For CSH shell, we need to declare environments variables with 'env' keyword.
+        # For CSH shell, we need to declare environments variables with 'env' keyword.
         if envs and (self._shell or self.default_shell) == 'csh':
             command.append('env')
         command.extend('%s=%s' % (var, value) for var, value in sorted(envs.items()))
 
-        # Add command to execute.
+        # Add command to execute.
         command.append(cmd)
 
         # Get specials options.
         interactive = options.pop('INTERACTIVE', False)
         stdin = options.pop('STDIN', None)
 
-        # Add arguments before options if 'options_place' control is set to 'after'.
+        # Add arguments before options if 'options_place' control is set to 'after'.
         if self._options_place == 'after':
             command.extend([str(arg) for arg in args])
 
@@ -192,7 +192,7 @@ class Host(object):
             else:
                 command.append('%s %s' % (option, value))
 
-        # Add arguments now if 'options_place' control is set to 'before' (the default).
+        # Add arguments now if 'options_place' control is set to 'before' (the default).
         if self._options_place == 'before':
             command.extend(args)
 
