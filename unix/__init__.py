@@ -353,6 +353,7 @@ class Local(Host):
         new_host = Local()
         new_host.__dict__.update(return_code=host.return_code)
         new_host.__dict__.update(host.controls)
+        new_host.__dict__.update(default_shell=host.default_shell)
         return new_host
 
     @property
@@ -456,7 +457,7 @@ class Remote(Host):
         new_host = Remote()
         new_host.__dict__.update(return_code=host.return_code)
         new_host.__dict__.update(host.controls)
-        attrs = ('ipv4', 'ipv6', 'fqdn', 'username')
+        attrs = ('ipv4', 'ipv6', 'fqdn', 'username', 'default_shell')
         new_host.__dict__.update({attr: getattr(host, attr) for attr in attrs})
         if hasattr(host, '_conn'):
             new_host.__dict__.update(_conn=host._conn)
