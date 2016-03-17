@@ -54,6 +54,7 @@ _CONTROLS = {'options_place': 'before',
              'decode': 'utf-8',
              'envs': {},
              'timeout': 0,
+             'escape_args': True,
              'shell': None,
              'su': None}
 
@@ -158,7 +159,7 @@ class Host(object):
 
     def _format_command(self, cmd, args, options):
         command = []
-        args = [quote(arg) for arg in args]
+        args = [quote(arg) if self._escape_args else arg for arg in args]
 
         # Get environments variables (from 'locale' and 'envs' controls).
         envs = ({var: self._locale for var in ('LC_ALL', 'LANGUAGE', 'LANG')}
