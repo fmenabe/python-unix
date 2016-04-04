@@ -195,7 +195,7 @@ class Host(object):
                 command.append(option)
             elif type(value) in (list, tuple, set):
                 command.extend('%s %s' % (option, val) for val in value)
-            else:
+            elif value is not None:
                 command.append('%s %s' % (option, value))
 
         # Add arguments now if 'options_place' control is set to 'before' (the default).
