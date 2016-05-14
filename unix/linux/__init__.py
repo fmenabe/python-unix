@@ -278,14 +278,12 @@ def Chroot(host, root):
 #
 # Context Manager for connecting to a remote host.
 #
-class connect(object):
+class connect(unix.connect):
     def __init__(self, host, **kwargs):
-        self.hostname = host
-        self.options = kwargs
+        unix.connect.__init__(self, host, **kwargs)
 
     def __enter__(self):
-        self._host = unix.Remote()
-        self._host.connect(self.hostname, **self.options)
+        super().__enter__()
         self._host = Linux(self._host)
         try:
             from . import gnu
@@ -295,8 +293,7 @@ class connect(object):
         return self._host
 
     def __exit__(self, type, value, traceback):
-        self._host.disconnect()
-        del self._host
+        super().__exit__(type, value, traceback)
 
 
 #
