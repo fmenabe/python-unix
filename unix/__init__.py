@@ -428,18 +428,23 @@ class Local(Host):
 # Context Manager for connecting to a remote host.
 #
 class connect(object):
-    def __init__(self, host, **kwargs):
+    def __init__(self, host, force_ssh=False, **kwargs):
         self.hostname = host
         self.options = kwargs
+        self.force_ssh = force_ssh
 
     def __enter__(self):
-        self._host = Remote()
-        self._host.connect(self.hostname, **self.options)
+        if self.hostname == 'localhost' and not self.force_ssh:
+            self._host = Local()
+        else:
+            self._host = Remote()
+            self._host.connect(self.hostname, **self.options)
         return self._host
 
     def __exit__(self, type, value, traceback):
-        self._host.disconnect()
-        del self._host
+        if self.hostname != 'localhost':
+            self._host.disconnect()
+            del self._host
 
 
 #
