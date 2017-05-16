@@ -283,7 +283,7 @@ class connect(unix.connect):
         unix.connect.__init__(self, host, **kwargs)
 
     def __enter__(self):
-        super().__enter__()
+        unix.connect.__enter__(self)
         self._host = Linux(self._host)
         try:
             from . import gnu
@@ -293,7 +293,7 @@ class connect(unix.connect):
         return self._host
 
     def __exit__(self, type, value, traceback):
-        super().__exit__(type, value, traceback)
+        unix.connect.__exit__(self, type, value, traceback)
 
 
 #
