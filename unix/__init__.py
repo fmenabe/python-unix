@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import time
+import fcntl
 import socket
 import select
 import signal
@@ -402,6 +403,37 @@ class Local(Host):
                                            shell=True,
                                            stderr=subprocess.STDOUT)
 
+    def iter(self, command, *args, **options):
+        """
+        """
+        command = self._format_command(command, args, options)
+        process = subprocess.Popen(command,
+                                   shell=True,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
+                                   universal_newlines=True)
+
+        # Prevent read* methods on the stdout and stderr buffers to wait for
+        # new data (ie: set stdout and stderr files in non-blocking mode).
+        stdout_flags = fcntl.fcntl(process.stdout, fcntl.F_GETFL)
+        fcntl.fcntl(process.stdout, fcntl.F_SETFL, stdout_flags | os.O_NDELAY)
+        stderr_flags = fcntl.fcntl(process.stderr, fcntl.F_GETFL)
+        fcntl.fcntl(process.stderr, fcntl.F_SETFL, stderr_flags | os.O_NDELAY)
+
+        while process.poll() is None:
+            ready = select.select([process.stdout, process.stderr], [], [])
+
+            if process.stdout in ready[0]:
+                for line in process.stdout.read().splitlines():
+                    yield (u'stdout', self._manage_encoding(line))
+
+            if process.stderr in ready[0]:
+                for line in process.stderr.read().splitlines():
+                    yield (u'stderr', self._manage_encoding(line))
+            time.sleep(0.1)
+        self.return_code = process.returncode
+        yield (u'status', True if self.return_code == 0 else False)
+
     def open(self, filepath, mode='r'):
         # For compatibility with SFTPClient object, the file is always open
         # in binary mode.
@@ -624,6 +656,35 @@ class Remote(Host):
                                 chan.send(data)
                     finally:
                         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, oldtty)
+
+    def iter(self, command, *args, **options):
+        with self._get_chan(options.pop('get_pty', False)) as chan:
+            with self._forward_agent(chan):
+                with timeout(self._timeout):
+                    # Non-blocking mode.
+                    chan.settimeout(0.0)
+
+                    command = self._format_command(command, args, options)
+                    chan.exec_command(command)
+                    end = False
+                    while not end:
+                        try:
+                            stdout = chan.recv(1024)
+                            for line in stdout.splitlines():
+                                yield (u('stdout'), self._manage_encoding(line))
+                            if not stdout:
+                                end = True
+                        except socket.timeout:
+                            pass
+
+                        try:
+                            for line in chan.recv_stderr(1024).splitlines():
+                                yield (u('stderr'), self._manage_encoding(line))
+                        except socket.timeout:
+                            pass
+
+                    self.return_code = chan.recv_exit_status()
+                    yield ('status', True if self.return_code == 0 else False)
 
     def open(self, filepath, mode='r'):
         self.is_connected()
