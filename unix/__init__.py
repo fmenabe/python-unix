@@ -14,6 +14,7 @@ from unix.path import Path as _Path, escape
 from unix.remote import Remote as _Remote
 from unix.users import Users as _Users
 from unix.groups import Groups as _Groups
+from paramiko.py3compat import u, b
 
 if sys.version_info.major < 3:
     from pipes import quote
@@ -214,6 +215,9 @@ class Host(object):
         logger.debug('[execute] %s' % command)
         return command
 
+    def _manage_encoding(self, output):
+        return u(output, self._decode) if self._decode else b(output)
+
     def execute(self):
         raise NotImplementedError(_HOST_CLASS_ERR)
 
@@ -383,10 +387,12 @@ class Local(Host):
                 stdout, stderr = obj.communicate()
                 self.return_code = obj.returncode
                 return [True if self.return_code == 0 else False,
-                        stdout.decode(self._decode) if self._decode else stdout,
-                        stderr.decode(self._decode) if self._decode else stderr]
+                        self._manage_encoding(stdout),
+                        self._manage_encoding(stderr)]
             except OSError as err:
-                return [False, u'', err]
+                return [False,
+                        self._manage_encoding(''),
+                        self._manage_encoding(str(err))]
 
     def interactive(self, command, *args, **options):
         """
@@ -581,8 +587,8 @@ class Remote(Host):
                     stdout = chan.makefile('rb', -1).read()
                     stderr = chan.makefile_stderr('rb', -1).read()
                     return [True if self.return_code == 0 else False,
-                            stdout.decode(self._decode) if self._decode else stdout,
-                            stderr.decode(self._decode) if self._decode else stderr]
+                            self._manage_encoding(stdout),
+                            self._manage_encoding(stderr)]
 
     def interactive(self, command, *args, **options):
         import termios
@@ -604,7 +610,7 @@ class Remote(Host):
                             rlist = select.select([chan, sys.stdin], [], [])[0]
                             if chan in rlist:
                                 try:
-                                    data = chan.recv(1024)
+                                    data = self._manage_encoding(chan.recv(1024))
                                     if len(data) == 0:
                                         break
                                     sys.stdout.write(data)
