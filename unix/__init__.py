@@ -176,7 +176,6 @@ class Host(object):
         command.append(cmd)
 
         # Get specials options.
-        interactive = options.pop('INTERACTIVE', False)
         stdin = options.pop('STDIN', None)
         stdout = options.pop('STDOUT', None)
 
@@ -213,7 +212,7 @@ class Host(object):
         if self._su:
             command = 'su - %s -c %s' % (self._su, quote(command))
         logger.debug('[execute] %s' % command)
-        return command, interactive
+        return command
 
     def execute(self):
         raise NotImplementedError(_HOST_CLASS_ERR)
@@ -350,7 +349,6 @@ class Local(Host):
         with self.set_controls(locale='', envs={}):
             self.default_shell = self.execute('echo $0')[1].strip()
 
-
     @staticmethod
     def clone(host):
         new_host = Local()
@@ -374,30 +372,29 @@ class Local(Host):
         executed interactively (printing output in real time and waiting for
         inputs) and stdout and stderr are empty. The return code of the last
         command is put in *return_code* attribut."""
-        command, interactive = self._format_command(command, args, options)
+        command = self._format_command(command, args, options)
 
         with timeout(self._timeout):
-            if interactive:
-                try:
-                    self.return_code = subprocess.call(command,
-                                                       shell=True,
-                                                       stderr=subprocess.STDOUT)
-                    return [True if self.return_code == 0 else False, u'', u'']
-                except subprocess.CalledProcessError as err:
-                    return [False, u'', err]
-            else:
-                try:
-                    obj = subprocess.Popen(command,
+            try:
+                obj = subprocess.Popen(command,
+                                       shell=True,
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE)
+                stdout, stderr = obj.communicate()
+                self.return_code = obj.returncode
+                return [True if self.return_code == 0 else False,
+                        stdout.decode(self._decode) if self._decode else stdout,
+                        stderr.decode(self._decode) if self._decode else stderr]
+            except OSError as err:
+                return [False, u'', err]
+
+    def interactive(self, command, *args, **options):
+        """
+        """
+        command = self._format_command(command, args, options)
+        self.return_code = subprocess.call(command,
                                            shell=True,
-                                           stdout=subprocess.PIPE,
-                                           stderr=subprocess.PIPE)
-                    stdout, stderr = obj.communicate()
-                    self.return_code = obj.returncode
-                    return [True if self.return_code == 0 else False,
-                            stdout.decode(self._decode) if self._decode else stdout,
-                            stderr.decode(self._decode) if self._decode else stderr]
-                except OSError as err:
-                    return [False, u'', err]
+                                           stderr=subprocess.STDOUT)
 
     def open(self, filepath, mode='r'):
         # For compatibility with SFTPClient object, the file is always open
@@ -552,64 +549,75 @@ class Remote(Host):
         if self._conn is None or not self._conn.get_transport():
             raise UnixError(_NOT_CONNECTED_ERR)
 
-    def execute(self, command, *args, **options):
+    @contextmanager
+    def _get_chan(self, get_pty=False):
         self.is_connected()
-
-        get_pty = options.pop('TTY', False)
-        command, interactive = self._format_command(command, args, options)
-
         chan = self._conn.get_transport().open_session()
-        if get_pty:
-            chan.get_pty()
+        try:
+            if get_pty:
+                chan.get_pty()
+            yield chan
+        finally:
+            chan.close()
+
+    @contextmanager
+    def _forward_agent(self, chan):
         forward = (paramiko.agent.AgentRequestHandler(chan)
                    if self.forward_agent
                    else None)
+        try:
+            yield forward
+        finally:
+            if forward:
+                forward.close()
 
-        with timeout(self._timeout):
-            if interactive:
-                chan.settimeout(0.0)
-                chan.exec_command(command)
-                while True:
-                    rlist = select.select([chan, sys.stdin], [], [])[0]
-                    if chan in rlist:
-                        try:
-                            stdout = chan.recv(1024)
-                            if len(stdout) == 0:
-                                break
-                            sys.stdout.write(stdout.decode())
-                            sys.stdout.flush()
-                        except socket.timeout:
-                            pass
-                    if sys.stdin in rlist:
-                        stdin = ''
+    def execute(self, command, *args, **options):
+        with self._get_chan(options.pop('get_pty', False)) as chan:
+            with self._forward_agent(chan):
+                with timeout(self._timeout):
+                    command = self._format_command(command, args, options)
+                    chan.exec_command(command)
+                    self.return_code = chan.recv_exit_status()
+                    stdout = chan.makefile('rb', -1).read()
+                    stderr = chan.makefile_stderr('rb', -1).read()
+                    return [True if self.return_code == 0 else False,
+                            stdout.decode(self._decode) if self._decode else stdout,
+                            stderr.decode(self._decode) if self._decode else stderr]
+
+    def interactive(self, command, *args, **options):
+        import termios
+        import tty
+        with self._get_chan(options.pop('get_pty', False)) as chan:
+            with self._forward_agent(chan):
+                with timeout(self._timeout):
+                    command = self._format_command(command, args, options)
+
+                    chan.get_pty()
+                    oldtty = termios.tcgetattr(sys.stdin)
+                    try:
+                        tty.setraw(sys.stdin.fileno())
+                        tty.setcbreak(sys.stdin.fileno())
+                        chan.settimeout(0.0)
+                        chan.exec_command(command)
+
                         while True:
-                            char = sys.stdin.read(1)
-                            stdin += char
-                            if len(char) == 0 or char == '\n':
-                                break
-                        chan.send(stdin)
-                    # If no wait, the process loop as he can, reading the
-                    # channel! Waiting 0.1 seconds avoids using a processor at
-                    # 100% for nothing.
-                    time.sleep(0.1)
-
-                self.return_code = chan.recv_exit_status()
-                stderr = chan.makefile_stderr('rb', -1).read()
-                if stderr:
-                    print(stderr.decode())
-                return [True if self.return_code == 0 else False, u'', u'']
-            else:
-                chan.exec_command(command)
-                self.return_code = chan.recv_exit_status()
-                stdout = chan.makefile('rb', -1).read()
-                stderr = chan.makefile_stderr('rb', -1).read()
-                return [True if self.return_code == 0 else False,
-                        stdout.decode(self._decode) if self._decode else stdout,
-                        stderr.decode(self._decode) if self._decode else stderr]
-
-        if forward:
-            forward.close()
-        chan.close()
+                            rlist = select.select([chan, sys.stdin], [], [])[0]
+                            if chan in rlist:
+                                try:
+                                    data = chan.recv(1024)
+                                    if len(data) == 0:
+                                        break
+                                    sys.stdout.write(data)
+                                    sys.stdout.flush()
+                                except socket.timeout:
+                                    pass
+                            if sys.stdin in rlist:
+                                data = sys.stdin.read(1)
+                                if len(data) == 0:
+                                    break
+                                chan.send(data)
+                    finally:
+                        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, oldtty)
 
     def open(self, filepath, mode='r'):
         self.is_connected()
