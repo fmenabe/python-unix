@@ -180,6 +180,7 @@ class Host(object):
         # Get specials options.
         stdin = options.pop('STDIN', None)
         stdout = options.pop('STDOUT', None)
+        stderr = options.pop('STDERR', None)
 
         # Add arguments before options if 'options_place' control is set to 'after'.
         if self._options_place == 'after':
@@ -204,7 +205,13 @@ class Host(object):
         if stdin:
             command.append(' < %s' % stdin)
         if stdout:
-            command.append(' > %s' % stdout)
+            command.append(' >> {:s}'.format(stdout[1:])
+                           if stdout.startswith('+')
+                           else ' > {:s}'.format(stdout))
+        if stderr:
+            command.append(' 2>> {:s}'.format(stderr[1:])
+                           if stderr.startswith('+')
+                           else ' 2> {:s}'.format(stderr))
 
         command = ' '.join(map(str, command))
         if self._shell:
