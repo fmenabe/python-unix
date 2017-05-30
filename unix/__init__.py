@@ -190,14 +190,12 @@ class Host(object):
             option = ('-%s' % option
                       if len(option) == 1
                       else '--%s' % option.replace('_', '-'))
-            if type(value) is bool:
-                if not value:
-                    continue
-                command.append(option)
-            elif type(value) in (list, tuple, set):
-                command.extend('%s %s' % (option, val) for val in value)
-            elif value is not None:
-                command.append('%s %s' % (option, value))
+            if not isinstance(value, (list, tuple, set)):
+                value = [value]
+            command.extend(
+                option if isinstance(val, bool) else '{:s} {:s}'.format(option, val)
+                for val in value
+                if val)
 
         # Add arguments now if 'options_place' control is set to 'before' (the default).
         if self._options_place == 'before':
