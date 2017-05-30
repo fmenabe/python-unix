@@ -430,7 +430,6 @@ class Local(Host):
             if process.stderr in ready[0]:
                 for line in process.stderr.read().splitlines():
                     yield (u'stderr', self._manage_encoding(line))
-            time.sleep(0.1)
         self.return_code = process.returncode
         yield (u'status', True if self.return_code == 0 else False)
 
