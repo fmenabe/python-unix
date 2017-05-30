@@ -249,7 +249,7 @@ class Host(object):
             raise OSError(stderr)
         return stdout
 
-    def listdir(self, path):
+    def listdir(self, path, hidden=False):
         """List files in a directory.
 
         .. note::
@@ -264,7 +264,13 @@ class Host(object):
         if not self.path.isdir(path):
             raise OSError("'%s' is not a directory" % path)
 
-        return self.list(path).splitlines()
+        # ls -1 allows to have one file per line.
+        opts = {'1': True}
+        if hidden:
+            opts.update(a=True)
+        return [filename
+                for filename in self.list(path, **opts).splitlines()
+                if filename not in ('.', '..')]
 
     def touch(self, *paths, **options):
         paths = [escape(path) for path in paths]
@@ -278,7 +284,7 @@ class Host(object):
         return self.execute('mkdir', *paths, **options)
 
     def copy(self, *paths, **options):
-        """Copy **src** file or directory to **dst**. *args and **options
+        """Copy **src** file or directory to **dst**. *paths and **options
         contains options that can be passed to the command. **options can
         contain an additionnal key *INTERACTIVE* that will be pass to
         ``execute`` function."""
