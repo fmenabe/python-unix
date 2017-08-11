@@ -256,13 +256,13 @@ class Host(object):
             As the exception raised is different when using local function
             ``os.listdir(path)`` or remote function ``sftp.listdir(path)``, this
             method use ``ls`` command for listing directory and raise the
-            **OSError** exception if **path** not exists or if there is another
-            unexpected error.
+            **IOError** exception if **path** not exists or **OSError** if there
+            is another unexpected error.
         """
         if not self.path.exists(path):
-            raise OSError("'%s' not exists" % path)
+            raise IOError("'%s' not exists" % path)
         if not self.path.isdir(path):
-            raise OSError("'%s' is not a directory" % path)
+            raise IOError("'%s' is not a directory" % path)
 
         # ls -1 allows to have one file per line.
         opts = {'1': True}
